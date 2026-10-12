@@ -1,0 +1,76 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Planned
+
+- **GitGraph (Git) diagram** rendering (`gitGraph`). Parser, layout and
+  rasterizer for branches, commits, checkouts, merges and tags. Test data is
+  already present and anonymised (`testdata/git-100.mmd`, `testdata/git-110.mmd`)
+  but is currently rendered only via `mmdc`; native `gmaid` support is pending.
+
+## [0.3.0] - 2026-10-13
+
+### Added
+
+- **Gantt chart** rendering (`gantt`) — new packages `gmodel/ gparser/
+  glayout/ grender/`.
+  - Parser for `title`, `dateFormat`, `axisFormat`, `tickInterval`, `section`
+    and tasks with tags (`done`, `active`, `crit`, `milestone`), explicit dates,
+    durations (`ms/s/m/h/d/w/M/y`), sequential defaults, and `after`/`until`.
+  - Date resolution (dayjs-style `dateFormat` → Go layout) with chart range.
+  - Time-scale layout: linear date→x axis, one row per task, section bands,
+    tick gridlines, milestone diamonds and a today marker.
+  - Renderer: centered title, alternating section bands, bars coloured by tag
+    (active/crit/done/normal), milestone diamonds, date axis and red today line.
+- Gantt anonymised test data (`testdata/gantt-100.mmd`, `testdata/gantt-110.mmd`).
+
+## [0.2.0] - 2026-10-13
+
+### Added
+
+- **Sequence diagram** rendering (`sequenceDiagram`) — new packages
+  `seqmodel/ seqparser/ seqlayout/ seqrender/`.
+  - Parser for `autonumber`, `participant`/`actor` with `as` aliases, messages
+    (`->`, `-->`, `->>`, `-->>`, `-x`, `--x`, `-)`, `--)`, `<<->>`) incl.
+    self-messages and `+/-` activation, `Note over/left of/right of`, and
+    blocks (`loop/alt/opt/par/critical/break/rect/box` with `else/and/option`).
+  - Timeline layout: mirrored actor boxes, lifelines, label-proportional column
+    spacing, autonumbered messages, notes and block frames.
+  - Renderer: lavender actor boxes, lifelines, filled/open/cross arrowheads,
+    rounded self-message loops, yellow notes, autonumber circles, block frames.
+- 32 sequence diagrams in the test data.
+
+### Changed
+
+- Dispatch in `main.go` routes by the diagram's first keyword so sequence and
+  flowchart pipelines coexist without touching the flowchart implementation.
+
+## [0.1.0] - 2026-10-13
+
+### Added
+
+- **Flowchart** rendering (`flowchart`) — the original pure-Go pipeline in
+  `model/ parser/ layout/ render/`. No cgo, no headless browser.
+  - Parser for directions (`TD/TB/LR/BT/RL`), node shapes (rect, round,
+    stadium, subroutine, cylinder, circle, diamond, hexagon, parallelogram,
+    trapezoid), edges (solid/dotted/thick/invisible with arrow/open/circle/
+    cross heads and labels), subgraphs with nested direction, and `style`
+    directives. `click` and `%%` comments are ignored.
+  - Sugiyama-style layered layout: cycle breaking, rank assignment, dummy-node
+    routing, crossing reduction, coordinate assignment with chain straightening.
+  - Renderer: node shapes, spline edges, arrowheads, subgraph boxes, per-node
+    style fills/strokes/colours, PNG output via `gg`.
+- `mmdc`-compatible CLI (`gmaid -i input.mmd -o output.png`) as a drop-in
+  replacement, plus batch mode and a `Taskfile.dev.yml` (`build`, `render`).
+- 17 flowcharts in the test data.
+
+[Unreleased]: https://example.com/gmaid/compare/v0.3.0...HEAD
+[0.3.0]: https://example.com/gmaid/releases/tag/v0.3.0
+[0.2.0]: https://example.com/gmaid/releases/tag/v0.2.0
+[0.1.0]: https://example.com/gmaid/releases/tag/v0.1.0

@@ -29,14 +29,19 @@ func TestParseAllSequence(t *testing.T) {
 }
 
 func TestParseExample(t *testing.T) {
-	b, _ := os.ReadFile("../testdata/600-email-contact-flow-02.mmd")
+	b, _ := os.ReadFile("../testdata/sequence-260.mmd")
 	d, err := Parse(string(b))
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Logf("autonumber=%v participants=%d events=%d", d.Autonumber, len(d.Participants), len(d.Events))
-	for _, p := range d.Participants {
-		t.Logf("  participant %s = %q", p.ID, p.Label)
+	// sequence-260 is a stable fixture (anonymised but structurally unchanged):
+	// autonumber on, 5 participants, 15 messages, 1 note, 3 block-events
+	// (alt/else/end). Assert these so a parse regression is caught.
+	if !d.Autonumber {
+		t.Errorf("autonumber: got false, want true")
+	}
+	if len(d.Participants) != 5 {
+		t.Errorf("participants: got %d, want 5", len(d.Participants))
 	}
 	msgs, notes, blocks := 0, 0, 0
 	for _, e := range d.Events {
@@ -49,5 +54,15 @@ func TestParseExample(t *testing.T) {
 			blocks++
 		}
 	}
-	t.Logf("  messages=%d notes=%d block-events=%d", msgs, notes, blocks)
+	if msgs != 15 {
+		t.Errorf("messages: got %d, want 15", msgs)
+	}
+	if notes != 1 {
+		t.Errorf("notes: got %d, want 1", notes)
+	}
+	if blocks != 3 {
+		t.Errorf("block-events: got %d, want 3", blocks)
+	}
+	t.Logf("autonumber=%v participants=%d messages=%d notes=%d block-events=%d",
+		d.Autonumber, len(d.Participants), msgs, notes, blocks)
 }

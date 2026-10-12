@@ -35,8 +35,8 @@ func TestParseAllFlowcharts(t *testing.T) {
 
 func TestParseExamples(t *testing.T) {
 	files := []string{
-		"../testdata/430-work-package-wismo-shipping-status-01.mmd",
-		"../testdata/503-adr-data-warehouse-integration-01.mmd",
+		"../testdata/flowchart-100.mmd",
+		"../testdata/flowchart-130.mmd",
 	}
 	for _, f := range files {
 		src, err := os.ReadFile(f)

@@ -7,8 +7,8 @@ import (
 
 func TestParseGantt(t *testing.T) {
 	for _, f := range []string{
-		"../testdata/220-project-timeline-01.mmd",
-		"../testdata/220-project-timeline-02.mmd",
+		"../testdata/gantt-100.mmd",
+		"../testdata/gantt-110.mmd",
 	} {
 		b, _ := os.ReadFile(f)
 		c, err := Parse(string(b))

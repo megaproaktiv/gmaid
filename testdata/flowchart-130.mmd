@@ -1,0 +1,44 @@
+flowchart LR
+    subgraph Luxurious["Luxurious"]
+        direction TB
+        Mad[Coffee Pickles<br/>Ire]
+        Red[Bright Pleased<br/>Nasty Solemn]
+        Rude[Porter Manners<br/>Boots]
+        Hot[Armour Legolas<br/>neighbourhood key worm Mount]
+    end
+
+    subgraph Neighbours["Neighbours"]
+        direction TB
+        Big1[Depredations<br/>ham disturbing]
+        Hot1[Depredations<br/>ham disturbing]
+        Big[Instruments Fili] --> Ham[Barrel<br/>Midsummer]
+        Ire1[Flowers Meadows]
+    end
+
+    subgraph Shields["Shields"]
+        direction TB
+        Jam[Chicken Gate Fields<br/>Sun]
+        Ire[Singing Clan Hollow<br/>Pinch Closed]
+        Son[Scarlet Hair Friend<br/>Food Cursed]
+        Wet[Shields Eyes Ruined<br/>Dreams Armour]
+    end
+
+    Mad -->|curses| Big1 --> Jam
+    Red -->|curses| Hot1 --> Ire
+    Rude -->|battle magic| Big
+    Ham --> Son
+    Hot --> Ire1 --> Wet
+
+    style Mad fill:#FF9900,color:#000
+    style Red fill:#FF9900,color:#000
+    style Rude fill:#FF9900,color:#000
+    style Hot fill:#FF9900,color:#000
+    style Big fill:#FF9900,color:#000
+    style Ham fill:#FF9900,color:#000
+    style Big1 fill:#ddd,color:#000
+    style Hot1 fill:#ddd,color:#000
+    style Ire1 fill:#FF9900,color:#000
+    style Jam fill:#569A31,color:#fff
+    style Ire fill:#569A31,color:#fff
+    style Son fill:#569A31,color:#fff
+    style Wet fill:#569A31,color:#fff

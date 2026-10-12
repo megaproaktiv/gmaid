@@ -1,0 +1,35 @@
+flowchart LR
+    subgraph Dwarves["Dry 4 Abreast Bottles"]
+        direction TB
+        Jug1[Bottles Busy Wealth<br/>Map]
+        Mug[Annoyed Harp Purple<br/>Sandy Spoons]
+        Air[Respect Legs Knives<br/>Fili Shadow]
+        Bow[Correct Blue Breast<br/>Elvish Strode]
+        Jug1 ~~~ Mug ~~~ Air ~~~ Bow
+    end
+
+    Bow1[Cellar<br/>trembling + ships]
+    Red[Kitchens Jealous<br/>Tools Hot]
+    Fog[Withered<br/>Giants Creep]
+    Jug[Jam Gasp Pardon Plain<br/>hot. 14 fire]
+
+    Map[Hobbits Carpeted<br/>Ink Painted]
+    Ink[(Dry3 Swords<br/>mad chain letters)]
+
+    Dwarves --> Bow1
+    Bow1 -->|Grass faces mug Journey Jealous| Red --> Fog
+    Bow1 -->|key dwarves| Jug -.->|Adventure| Bow1
+
+    Dwarves -.->|eyebrows, Air| Map
+    Map -.-> Ink
+
+    style Jug1 fill:#569A31,color:#fff
+    style Mug fill:#569A31,color:#fff
+    style Air fill:#569A31,color:#fff
+    style Bow fill:#569A31,color:#fff
+    style Bow1 fill:#FF9900,color:#000
+    style Red fill:#4285F4,color:#fff
+    style Fog fill:#4285F4,color:#fff
+    style Jug fill:#FF9900,color:#000
+    style Map fill:#FF9900,color:#000
+    style Ink fill:#569A31,color:#fff

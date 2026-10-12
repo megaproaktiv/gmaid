@@ -1,0 +1,12 @@
+# Hobbit characters used (alphabetical):
+Balin
+Bard
+Bilbo
+Fili
+Gandalf
+Kili
+Legolas
+Radagast
+Tauriel
+Thorin
+Thranduil
