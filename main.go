@@ -20,17 +20,55 @@ import (
 	"path/filepath"
 	"strings"
 
+	"gmaid/glayout"
+	"gmaid/gparser"
+	"gmaid/grender"
 	"gmaid/layout"
 	"gmaid/parser"
 	"gmaid/render"
+	"gmaid/seqlayout"
+	"gmaid/seqparser"
+	"gmaid/seqrender"
 )
 
 func main() {
 	scale := flag.Float64("scale", 2.0, "output resolution scale factor")
-	outDir := flag.String("out", "output", "output directory for rendered PNGs")
+	outDir := flag.String("out", "output", "output directory for rendered PNGs (batch mode)")
 	verbose := flag.Bool("v", false, "verbose logging")
+	// mmdc-compatible flags so gmaid is a drop-in replacement for `mmdc -i ...`.
+	inFile := flag.String("i", "", "input .mmd file (mmdc-compatible)")
+	outFile := flag.String("o", "", "output .png file (mmdc-compatible)")
+	_ = flag.String("b", "", "background (accepted for mmdc compatibility, ignored)")
 	flag.Parse()
 
+	rr := &renderers{
+		fcEng:  layout.NewEngine(layout.DefaultConfig()),
+		fcRnd:  render.New(render.DefaultTheme(), layout.DefaultConfig(), *scale),
+		seqEng: seqlayout.NewEngine(seqlayout.DefaultConfig()),
+		seqRnd: seqrender.New(seqrender.DefaultTheme(), seqlayout.DefaultConfig(), *scale),
+		gEng:   glayout.NewEngine(glayout.DefaultConfig()),
+		gRnd:   grender.New(grender.DefaultTheme(), glayout.DefaultConfig(), *scale),
+	}
+
+	// mmdc-compatible single-file mode: `gmaid -i input.mmd [-o output.png]`.
+	if *inFile != "" {
+		out := *outFile
+		if out == "" {
+			out = strings.TrimSuffix(*inFile, filepath.Ext(*inFile)) + ".png"
+		}
+		if dir := filepath.Dir(out); dir != "" {
+			_ = os.MkdirAll(dir, 0o755)
+		}
+		if err := rr.renderTo(*inFile, out); err != nil {
+			fmt.Fprintf(os.Stderr, "FAIL %s: %v\n", *inFile, err)
+			os.Exit(1)
+		}
+		fmt.Println(out)
+		return
+	}
+
+	// Batch mode: render every supported .mmd under the given paths (default
+	// ./testdata) into the output directory.
 	paths := flag.Args()
 	if len(paths) == 0 {
 		paths = []string{"testdata"}
@@ -42,7 +80,7 @@ func main() {
 		os.Exit(1)
 	}
 	if len(files) == 0 {
-		fmt.Fprintln(os.Stderr, "no flowchart .mmd files found")
+		fmt.Fprintln(os.Stderr, "no supported .mmd files found")
 		os.Exit(1)
 	}
 
@@ -53,13 +91,9 @@ func main() {
 		}
 	}
 
-	cfg := layout.DefaultConfig()
-	eng := layout.NewEngine(cfg)
-	rnd := render.New(render.DefaultTheme(), cfg, *scale)
-
 	ok, fail := 0, 0
 	for _, f := range files {
-		out, err := renderFile(eng, rnd, f, *outDir)
+		out, err := rr.renderFile(f, *outDir)
 		if err != nil {
 			fail++
 			fmt.Fprintf(os.Stderr, "FAIL %s: %v\n", f, err)
@@ -78,23 +112,66 @@ func main() {
 	}
 }
 
-// renderFile parses, lays out and renders a single .mmd file, returning the
-// output PNG path.
-func renderFile(eng *layout.Engine, rnd *render.Renderer, path, outDir string) (string, error) {
-	src, err := os.ReadFile(path)
-	if err != nil {
+// renderers bundles the per-diagram-type engines and rasterizers.
+type renderers struct {
+	fcEng  *layout.Engine
+	fcRnd  *render.Renderer
+	seqEng *seqlayout.Engine
+	seqRnd *seqrender.Renderer
+	gEng   *glayout.Engine
+	gRnd   *grender.Renderer
+}
+
+// renderFile renders a single .mmd into outDir, deriving the PNG name from the
+// source. It is the batch-mode entry point.
+func (rr *renderers) renderFile(path, outDir string) (string, error) {
+	out := outputPath(path, outDir)
+	if err := rr.renderTo(path, out); err != nil {
 		return "", err
 	}
-	g, err := parser.Parse(string(src))
-	if err != nil {
-		return "", fmt.Errorf("parse: %w", err)
-	}
-	dia := eng.Layout(g)
-	out := outputPath(path, outDir)
-	if err := rnd.Render(dia, out); err != nil {
-		return "", fmt.Errorf("render: %w", err)
-	}
 	return out, nil
+}
+
+// renderTo parses, lays out and renders a single .mmd file to the exact output
+// path, dispatching by the diagram's first keyword. The flowchart and sequence
+// pipelines are left exactly as they were.
+func (rr *renderers) renderTo(path, out string) error {
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	switch diagramKind(string(src)) {
+	case kindGantt:
+		c, err := gparser.Parse(string(src))
+		if err != nil {
+			return fmt.Errorf("gantt parse: %w", err)
+		}
+		if err := rr.gRnd.Render(rr.gEng.Layout(c), out); err != nil {
+			return fmt.Errorf("gantt render: %w", err)
+		}
+		return nil
+	case kindSequence:
+		d, err := seqparser.Parse(string(src))
+		if err != nil {
+			return fmt.Errorf("seq parse: %w", err)
+		}
+		if err := rr.seqRnd.Render(rr.seqEng.Layout(d), out); err != nil {
+			return fmt.Errorf("seq render: %w", err)
+		}
+		return nil
+	case kindFlowchart:
+		g, err := parser.Parse(string(src))
+		if err != nil {
+			return fmt.Errorf("parse: %w", err)
+		}
+		if err := rr.fcRnd.Render(rr.fcEng.Layout(g), out); err != nil {
+			return fmt.Errorf("render: %w", err)
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported diagram type")
+	}
 }
 
 // outputPath maps SRC.mmd to SRC.png, optionally in outDir.
@@ -106,7 +183,8 @@ func outputPath(src, outDir string) string {
 	return filepath.Join(filepath.Dir(src), base)
 }
 
-// collectFiles expands the given paths into a list of flowchart .mmd files.
+// collectFiles expands the given paths into a list of supported .mmd files
+// (flowchart or sequence diagrams).
 func collectFiles(paths []string) ([]string, error) {
 	var out []string
 	seen := map[string]bool{}
@@ -124,40 +202,75 @@ func collectFiles(paths []string) ([]string, error) {
 		if info.IsDir() {
 			matches, _ := filepath.Glob(filepath.Join(p, "*.mmd"))
 			for _, m := range matches {
-				if isFlowchart(m) {
+				b, _ := os.ReadFile(m)
+				if diagramKind(string(b)) != kindUnknown {
 					add(m)
 				}
 			}
 			continue
 		}
-		// explicit file: include regardless, but still require flowchart header
 		if strings.EqualFold(filepath.Ext(p), ".mmd") {
-			if isFlowchart(p) {
+			b, _ := os.ReadFile(p)
+			if diagramKind(string(b)) != kindUnknown {
 				add(p)
 			} else {
-				fmt.Fprintf(os.Stderr, "skip %s: not a flowchart diagram\n", p)
+				fmt.Fprintf(os.Stderr, "skip %s: unsupported diagram type\n", p)
 			}
 		}
 	}
 	return out, nil
 }
 
-// isFlowchart reports whether a file is a flowchart diagram: its first
-// non-empty, non-comment line must have "flowchart" as its exact first word
-// (e.g. "flowchart TD"). The "graph" alias and any other diagram type are
-// intentionally excluded, as are words like "flowcharts".
-func isFlowchart(path string) bool {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return false
+// diagramKind classifies a diagram by its first keyword. Dispatch and the
+// flowchart-only guarantee both rely on this exact-first-word matching.
+type kind int
+
+const (
+	kindUnknown kind = iota
+	kindFlowchart
+	kindSequence
+	kindGantt
+)
+
+func diagramKind(src string) kind {
+	switch firstKeyword(src) {
+	case "flowchart":
+		return kindFlowchart
+	case "sequenceDiagram":
+		return kindSequence
+	case "gantt":
+		return kindGantt
+	default:
+		return kindUnknown
 	}
-	for _, line := range strings.Split(string(b), "\n") {
+}
+
+// firstKeyword returns the first word of the first non-empty, non-comment,
+// non-front-matter line.
+func firstKeyword(src string) string {
+	for _, line := range strings.Split(src, "\n") {
 		t := strings.TrimSpace(line)
 		if t == "" || strings.HasPrefix(t, "%%") || strings.HasPrefix(t, "---") {
 			continue
 		}
 		fields := strings.Fields(t)
-		return len(fields) > 0 && fields[0] == "flowchart"
+		if len(fields) == 0 {
+			return ""
+		}
+		return fields[0]
 	}
-	return false
+	return ""
 }
+
+// isFlowchart reports whether a file is a flowchart diagram (first word
+// "flowchart"). Retained as a small readable predicate; the main dispatch uses
+// diagramKind directly.
+func isFlowchart(path string) bool {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return diagramKind(string(b)) == kindFlowchart
+}
+
+var _ = isFlowchart

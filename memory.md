@@ -1,0 +1,410 @@
+# gmaid — Project Memory (session re-entry doc)
+
+Last updated: 2026-10-12. This file lets a fresh AI session resume work without
+re-deriving context. Read it fully before changing code.
+
+## 1. What this is
+
+A **pure-Go** application (no cgo, no browser) that parses Mermaid diagrams and
+renders them to PNG. Three diagram types are supported, dispatched by the first
+keyword of the file:
+- **flowchart** — hand-rolled parser + Sugiyama layered layout + gg rasterizer
+  (packages `model/ parser/ layout/ render/`). This was the original work.
+- **sequenceDiagram** — separate parser + timeline layout + gg rasterizer
+  (packages `seqmodel/ seqparser/ seqlayout/ seqrender/`). Added WITHOUT
+  touching the flowchart packages (user constraint).
+- **gantt** — separate parser (with date resolution) + time-scale layout + gg
+  rasterizer (packages `gmodel/ gparser/ glayout/ grender/`). Added WITHOUT
+  touching the flowchart or sequence packages.
+
+- Module: `gmaid` (see `go.mod`), Go 1.27.
+- Working dir: `/Users/gernotglawe/letsbuild/2026/gmaid`
+- Dependency: `github.com/fogleman/gg v1.3.0` (+ freetype + x/image), all pure Go.
+
+## 2. How to build / run / verify
+
+```bash
+go build ./...
+go vet ./...
+go test ./...                 # parser + layout tests
+go run .                      # renders all flowchart files in ./testdata -> ./output
+go run . path/to/file.mmd     # render specific file(s) or dir(s)
+go run . -scale 3 -out ./png testdata   # flags: -scale (default 2), -out (default "output"), -v
+./compare.sh                  # renders all + prints aspect-ratio displacement vs mermaid refs
+```
+
+- Output PNGs go to `./output/` by default (NOT testdata — user requirement).
+- `mmdc` (mermaid CLI) is installed at `~/.bun/bin/mmdc`; used to make references.
+
+## 3. Package layout (packages are at PROJECT ROOT — user forbade `internal/`)
+
+- `model/model.go` — data model: Graph, Node, Edge, Subgraph, Style, Shape,
+  Direction, EdgeLineStyle, ArrowType. NOTE enum ordering: `ArrowNormal=0`,
+  `ArrowNone=1` (so arrow==0 means a normal arrowhead). Shapes: Rect=0, Round,
+  Stadium, Subroutine, Cylinder, Circle, Diamond, Hexagon, Parallelogram,
+  ParallelogramAlt, Trapezoid, TrapezoidAlt.
+- `parser/` — `parser.go` (line dispatch, headers, subgraphs, direction,
+  style), `statement.go` (edge-chain splitting + operator classification +
+  `splitAmp` quote/bracket-aware `&` split), `node.go` (shape detection, label
+  cleaning, style props, header/direction helpers). `parser_test.go` tests the
+  two examples + parses all 17 flowcharts.
+- `layout/` — the engine:
+  - `types.go` — Config (+ `DefaultConfig`), Point, NodeBox, SubBox, EdgePath,
+    Diagram.
+  - `sugiyama.go` — group struct; pipeline `solve()` = breakCycles (DFS reverse
+    back-edges) -> assignRanks (Kahn longest-path) + `stackIsolated()` ->
+    insertDummies -> ordering (barycenter, 8 iters) -> assignCoords. Has
+    `labelExtent` field (rank-axis space reserved for edge labels).
+  - `coords.go` — assignCoords: rank/cross axis mapping; **flow-dependent rank
+    gap** (`rankSep *= 1.4` when horizontal); 24-iter mean-barycenter alignment
+    of up+down neighbors; chain-straightening (6 passes); overlap resolution.
+  - `engine.go` — Engine, recursive subgraph layout (subgraphBlock), solveGroup,
+    edge routing (routeChain clips to real NodeBox via clipBox),
+    `subgraphChildrenIsolated()` + `perpendicular()`.
+  - `translate.go` — diagram/subgraph coordinate translation.
+  - `layout_test.go` — smoke test on the two examples.
+- `render/` — `render.go` (Theme, Renderer, Render = bg -> subgraphs -> edges ->
+  nodes -> edge labels), `shapes.go` (node/subgraph shape paths + style
+  application), `edges.go` (Catmull-Rom **spline** edges, arrowheads/circle/
+  cross, dotted/thick/invisible, labels), `color.go` (parseHex #rgb/#rrggbb/
+  #rrggbbaa + named).
+- `textmetrics/textmetrics.go` — shared font loading (gofont goregular/gobold)
+  + string measuring so layout sizes match rendered text. `SplitLines` splits
+  labels on `\n`.
+- `main.go` — CLI: collectFiles, renderFile, outputPath, **isFlowchart**.
+
+## 4. Mermaid feature coverage (verified across 17 testdata flowcharts)
+
+- Directions: TD/TB, LR, BT, RL (BT/RL via rank mirroring).
+- Shapes: `[rect]`, `(round)`, `([stadium])`, `[[subroutine]]`, `[(cylinder)]`,
+  `((circle))`, `{diamond}`, `{{hexagon}}`, `[/para/]`, `[\para\]`, trapezoids.
+- Edges: `-->`, `---`, `-->|lbl|`, `-- text -->`, `-.->`, `-.->|lbl|`, `==>`
+  (thick), `~~~` (invisible, influences layout but not drawn), `--o`, `--x`,
+  multi-dash min-length (`MinLen`), chaining `A --> B --> C`, `A & B --> C`.
+- Subgraphs: titles, nested, per-subgraph `direction`.
+- `style NODE fill:/stroke:/stroke-width:/color:/stroke-dasharray` honored.
+- `click`, `%%` comments, `classDef`/`class`/`linkStyle` safely ignored.
+- Labels: `<br/>`, `<br>`, `\n`, quotes/backticks, HTML entities decoded.
+
+## 5. CRITICAL constraints from the user (do not violate)
+
+1. **No `internal/` package** — all packages at project root.
+2. **Output to `./output/`**, never write PNGs into `testdata/`.
+3. **Render ONLY flowcharts**: `isFlowchart()` requires the first non-empty,
+   non-comment line's FIRST WORD (via `strings.Fields`) to equal exactly
+   `flowchart`. The `graph` alias and all other diagram types are EXCLUDED.
+   Verified excludes 32 sequenceDiagram, 2 gitGraph, 2 gantt files.
+4. **Edges are splines** (Catmull-Rom), not straight polylines.
+5. **No Chrome/headless/mmdc in the app** — mmdc is only a dev-time reference
+   tool, never a runtime dependency.
+6. Lane alignment across subgraphs is "ok" (user accepted it) — do NOT spend
+   effort forcing cross-subgraph row alignment.
+
+## 6. Layout fidelity status (metric + current config)
+
+Metric = Σ |ref_aspect_ratio − mine_aspect_ratio| across 17 files, via
+`./compare.sh` (compares `output/*.png` to `reference/*.png`; references are
+regenerated with mmdc — see §8). Lower is better.
+
+- History: 16.569 (start of tuning) -> 13.479 -> 10.844 -> 10.792 -> **7.391**.
+- Current `DefaultConfig`: NodeHPad=18, NodeVPad=9, MinNodeW=40, MinNodeH=36,
+  RankSep=105, NodeSep=28, SubPad=22, SubTitleH=26, FontSize=15, LineHeight=19,
+  CharW=8.2, Margin=24. Plus `rankSep *= 1.4` for horizontal flows in coords.go.
+- 14/17 files are within 0.3 displacement. 503 = 0.001 (near-perfect).
+
+Current per-file displacement (worst first):
+```
+1.839 700-a2a-elevenlabs-01            ref=6.588 mine=4.749
+1.839 630-a2a-elevenlabs-01            ref=6.588 mine=4.749
+0.882 880-runbook-adding-a-new-flow-01 ref=0.797 mine=1.679
+0.764 504-adr-raw-event-s3-archival-01 ref=2.058 mine=2.822
+0.633 880-runbook-adding-a-new-flow-02 ref=8.809 mine=9.442
+0.297 430-...                          ref=0.590 mine=0.887
+0.287 840-development-backend-01        ref=1.571 mine=1.284
+... (rest < 0.3) ...
+0.001 503-adr-data-warehouse-integration-01 ref=2.069 mine=2.070
+TOTAL_ERR=7.391
+```
+
+## 7. KNOWN ISSUES / OPEN WORK (ranked by impact)
+
+### I1. Extreme LR chains too tall (630 / 700-a2a-elevenlabs) — BIGGEST error
+- ref aspect ratio ≈ 6.59 (very flat/wide); mine ≈ 4.75 (too tall).
+- Cause: disconnected components (main Caller→... chain vs the KMS key /
+  Security profile feeder band) are spread across empty cross-axis rows.
+  `resolveOverlaps` is PER-RANK, so there is no cross-rank vertical compaction;
+  empty vertical bands remain between the two component bands.
+- Main chains ARE now straight (chain-straightening works). The height is the
+  inter-band gap, not staircasing.
+- Possible fix: add a global cross-axis compaction that removes empty bands
+  spanning all ranks, or lay out weakly-connected components and pack them
+  tightly along the cross axis. Must not regress the 14 good files — measure
+  with ./compare.sh after every change.
+
+### I2. 880-runbook-01 TD spine drifts rightward (err 0.88)
+- ref ar 0.80 (tall/narrow); mine 1.68 (too wide).
+- Cause: branching diamonds (degree>2) pull their parent toward the MEAN of
+  their fanned-out children, which extends rightward; drift propagates up the
+  spine. Chain-straightening only triggers for strict 1:1 links, so it doesn't
+  catch diamond spines.
+- Tried & REJECTED: median-based alignment (both as the main pass and as a final
+  refinement) — it made the TOTAL metric WORSE (7.391 -> ~8.3) and worsened
+  880-01. Do NOT reintroduce median alignment without proving a net gain.
+- Possible fix: priority/Brandes-Köpf-style alignment that picks a primary
+  child to keep colinear with its parent; or a weak global anchor toward the
+  layer centroid. Validate aggregate metric before keeping.
+
+### I3. 504 LR slightly too wide (err 0.76)
+- The `rankSep *= 1.4` horizontal multiplier over-widens LR graphs that have
+  few/no edge labels. A smarter approach would scale rank gap by actual label
+  presence per gap rather than a flat 1.4x for all horizontal flows.
+
+### I4. TD vs metric tension (design note)
+- Pure aspect-ratio optimization favors large RankSep, which makes TD diagrams
+  look airy/sparse (observed at RankSep=140). Current 105 + 1.4x horizontal is
+  a compromise balancing the metric against TD visual compactness. If you push
+  the metric lower, re-check TD visuals (esp. 430) — do not let them get sparse.
+
+### I5. Metric is a proxy
+- Aspect-ratio displacement is a cheap structural proxy, not true node-position
+  displacement. It can be gamed. For real fidelity, consider parsing mermaid SVG
+  node coordinates and comparing positions — not yet implemented.
+
+## 8. Reproducing the comparison harness
+
+```bash
+# (re)generate mermaid references:
+mkdir -p reference
+for f in testdata/*.mmd; do
+  head -1 "$f" | grep -qE '^\s*flowchart' || continue
+  base=$(basename "$f" .mmd)
+  mmdc -i "$f" -o "reference/$base.png" -b white
+done
+./compare.sh      # prints per-file err (sorted) + TOTAL_ERR
+```
+`reference/` and `output/` are regenerable artifacts (safe to delete; not source).
+
+## 9. Gotchas learned the hard way
+
+- `-- no -->` inline edge labels: must be matched as ONE operator carrying the
+  label, else "no"/"yes" become phantom nodes. Handled in statement.go regexes
+  (reSolidLabel/reThickLabel/reDotLabel) tried BEFORE bare connectors.
+- `&` inside a quoted label (e.g. `WP2["Email & AI Routing"]`) must NOT split
+  the node — `splitAmp` is bracket/quote-aware.
+- Isolated subgraph members (edges only cross outside the subgraph) must stack
+  PERPENDICULAR to the PARENT flow (vertical column for an LR parent). See
+  `subgraphChildrenIsolated` + `perpendicular` in engine.go. This fixed 480
+  (err 2.38 -> 0.04) and is why 503 subgraphs stack vertically.
+- Arrowhead direction follows the spline's end tangent (edges.go strokeSpline
+  returns the end tangent).
+
+## 10. Suggested next steps for a new session
+
+1. Attack I1 (630/700) with cross-axis component compaction; measure with
+   ./compare.sh; keep only if TOTAL_ERR drops and no good file regresses.
+2. Then I2 (880-01) with priority alignment.
+3. Keep every change gated on `go build && go vet && go test && ./compare.sh`
+   and a spot visual check of 430 (TD) and 503 (LR subgraphs).
+
+
+---
+
+# SEQUENCE DIAGRAMS (added 2026-10-12)
+
+## S1. Packages (all NEW; flowchart packages were NOT modified)
+
+- `seqmodel/seqmodel.go` — Diagram, Participant (ID/Label/Kind), Event union
+  (EvMessage, EvNote, EvBlockStart, EvBlockElse, EvBlockEnd, EvActivate,
+  EvDeactivate), ArrowStyle{Dotted,Head}, HeadType (Arrow/Open/Cross/None/Bi),
+  NotePlacement (Over/LeftOf/RightOf). Autonumber bool. EnsureParticipant,
+  Index(id).
+- `seqparser/` — `seqparser.go` (header, autonumber, participant/actor `as`
+  alias, Note over/left of/right of, blocks loop/alt/opt/par/critical/break/
+  rect/box + else/and/option + end, activate/deactivate, %% comments);
+  `message.go` (splitArrow longest-first for -> --> ->> -->> -x --x -) --)
+  <<->> <<-->>, +/- activation suffix, self-messages, cleanText, color prefix).
+  `seqparser_test.go` parses all 32 + a detailed example.
+- `seqlayout/` — `types.go` (Config, Actor, Message, NoteBox, Block, Divider,
+  Diagram), `engine.go` (Engine.Layout). Timeline layout: actor box widths from
+  bold label; **label-proportional inter-column gaps** (gapBetween[i] = max over
+  messages spanning boundary i of (labelWidth+24)/numBoundaries, floored at
+  cfg.ActorGap); self-loops reserve selfExtra to the right; walk events top→
+  bottom assigning Y; block frames via a stack (finalizeBlock spans all columns
+  + depth inset); notes clamped to left margin; canvas size from max extents.
+- `seqrender/` — `seqrender.go` (Theme, Renderer, Render: lifelines → blocks →
+  notes → messages → actor boxes top+bottom mirrored), `draw.go` (messages:
+  straight + self-loop arcs, arrowheads filled/open/cross/bi, dotted dashes,
+  labels above line, autonumber purple circles with white number; notes yellow
+  box; block frame + label tab + dashed else/and dividers).
+
+## S2. Dispatch (main.go — the only shared file touched)
+
+- `diagramKind(src)` → kindFlowchart | kindSequence | kindUnknown via
+  `firstKeyword` (exact first word: "flowchart" or "sequenceDiagram").
+- `renderFile` branches on kind; the flowchart branch is byte-for-byte the old
+  path (flowchart metric stayed exactly 7.391 before/after). collectFiles now
+  accepts both kinds. Non-supported diagrams (gitGraph, gantt) are skipped.
+- Both types render into ./output/ in one `go run .` (49 files = 17 + 32).
+
+## S3. Sequence feature coverage (verified on 32 testdata files)
+
+autonumber, participant X as Label, Note over X[,Y], messages ->/-->/->>/-->>
+with solid/dotted + arrow/open/cross/bi heads, self-messages (loop arc), alt/
+else/end blocks. Parser also supports actor stick figures, loop/opt/par/
+critical/break/rect/box + activate/deactivate (not present in testdata).
+
+## S4. Fidelity metric + config (sequence)
+
+Metric: `./compare-seq.sh` = Σ |ref_ar − mine_ar| over 32 files vs
+`reference-seq/` (regenerate with mmdc, see S6). 10-iteration history:
+- Baseline 28.376 (ALL 32 too TALL — mine ar < ref uniformly; mermaid sequence
+  diagrams are ~2x wider than tall relative to mine).
+- Iter 1–2: ActorGap 40→205, MsgGap 40→34 → 3.175 (swept; min at ~205).
+- Iter 6–8: **label-proportional column gaps** (replaced flat gap) + retune
+  ActorGap→218 → 2.659. Residual errors now SMALL and BIDIRECTIONAL (worst
+  ~0.17), i.e. no systematic bias remains — just per-file label-width noise.
+- Final: SEQ_TOTAL_ERR = **2.659** (91% below baseline).
+- `seqlayout.DefaultConfig`: Margin=12, ActorW=75, ActorH=44, ActorPadX=16,
+  ActorGap=218 (base/min inter-column gap), TopGap=38, MsgGap=34, SelfMsgGap=36,
+  NoteGap=12, NotePadX=14, NotePadY=10, BlockPadTop=22, FontSize=14,
+  LineHeight=17, LabelFont=13.
+
+## S5. KNOWN ISSUES / OPEN WORK (sequence)
+
+- SI1. ActorGap=218 base is large; it is a floor under the label-proportional
+  gaps. Diagrams with very short labels get slightly over-wide; those with long
+  labels slightly under-wide. Residual is small (~0.08/file avg). A fully
+  label-driven gap with a smaller floor regressed the metric (short-label files
+  collapsed), so the floor stays. Could revisit with per-boundary label maxima
+  weighted by message count.
+- SI2. Block frames span ALL participants; mermaid narrows an alt/loop frame to
+  just the involved actors. Cosmetic; not yet implemented. See finalizeBlock.
+- SI3. Notes over the leftmost actor are CLAMPED to the left margin (not shifted
+  with a wider canvas as mermaid does). Shifting the whole diagram right instead
+  regressed the metric 2.659→3.533 because that opening note recurs in many
+  files, so clamping was chosen. Minor: a very wide leftmost note sits flush to
+  the margin rather than centered on its actor.
+- SI4. Activations (activate/deactivate and +/- suffixes) are parsed but NOT yet
+  drawn as activation bars. No testdata uses them.
+- SI5. Metric is the same aspect-ratio proxy caveat as the flowchart side.
+
+## S6. Reproduce sequence references + compare
+
+```bash
+mkdir -p reference-seq
+for f in testdata/*.mmd; do
+  head -1 "$f" | grep -qE '^\s*sequenceDiagram' || continue
+  base=$(basename "$f" .mmd)
+  mmdc -i "$f" -o "reference-seq/$base.png" -b white
+done
+./compare-seq.sh      # per-file err (sorted) + SEQ_TOTAL_ERR
+```
+`reference-seq/` is a regenerable artifact (safe to delete).
+
+## S7. Verification gate for ANY change
+
+`go build ./... && go vet ./... && go test ./... && ./compare.sh && ./compare-seq.sh`
+Flowchart metric MUST stay 7.391 (proves flowchart untouched); sequence metric
+should stay ≤ 2.659 or improve. Spot-check 600-email-contact-flow-02 (alt block
++ note + self-messages) and 590-architecture-handling-08 (opening note).
+
+
+---
+
+# GANTT CHARTS (added 2026-10-12)
+
+## G1. Packages (all NEW; flowchart + sequence packages NOT modified)
+
+- `gmodel/gmodel.go` — Chart{Title, DateFormat, AxisFormat, TickEvery, TickUnit,
+  Sections, Tasks, Min, Max}, Section{Name, Tasks}, Task{ID, Label, Tag
+  (TagNormal/Active/Done/Crit), Milestone, Start, End, Section}. Task.SetRaw/
+  RawStart/RawEnd stash unresolved spec strings for the resolver.
+- `gparser/` — `gparser.go` (header `gantt`, title, dateFormat, axisFormat,
+  tickInterval `<n><unit>`, section, task line `Label : [tags,] [id,]
+  <start>, <end|dur>`; tags done/active/crit/milestone parsed first; excludes/
+  weekend/todayMarker/click/vert ignored). `dates.go` resolveDates: goLayout
+  converts dayjs dateFormat->Go reference layout; durations ms/s/m/h/d/w/M/y;
+  `after <id...>` (latest end), `until <id>` (that task's start); sequential
+  default start = previous task's End; sets Chart.Min/Max. `gparser_test.go`.
+- `glayout/` — `glayout.go` (Config, Bar, SectionBand, Tick, Diagram, Engine).
+  Linear date->x scale over [Min,Max] -> [ChartLeft,ChartRight]; one row per
+  task (rowH = BarH+BarGap); section bands span full width (Index for color
+  cycle); bars by Start/End, label inside if it fits else beside; milestones =
+  diamond at midpoint(Start,End) with label beside; ticks via alignDown +
+  advance per TickUnit; today marker X when now in [Min,Max]. `axis.go`
+  formatAxis = strftime subset (%Y %y %m %d %e %H %M %S %b %B %a %A %%).
+- `grender/` — section bands (cycled palette) -> gridlines -> section names ->
+  bars/milestones -> axis labels -> red today line -> centered title. drawBar
+  roundRect colored by tag; drawMilestone diamond.
+
+## G2. Dispatch (main.go)
+
+- `kind` enum gained `kindGantt`; `diagramKind` maps first word "gantt".
+- `renderers` struct bundles all three engine+renderer pairs; `renderFile`
+  switches on kind. Flowchart and sequence branches are byte-identical to before
+  (both metrics unchanged: 7.391 and 2.659).
+- `go run .` renders 51 files total (17 flowchart + 32 sequence + 2 gantt).
+
+## G3. Gantt feature coverage (verified on 2 testdata files)
+
+title, dateFormat (YYYY-MM-DD), axisFormat (%d.%m, %Y), tickInterval (1week,
+1month), section, tasks with tags (done/active/crit/milestone incl. combos like
+`milestone,done`), explicit start dates, durations (7d/10d/0d), implicit
+sequential starts. Parser also supports `after`/`until` (not in testdata).
+Not implemented: excludes, weekends, compact mode, vert markers (ignored).
+
+## G4. Fidelity metric + config (gantt)
+
+Metric: `./compare-gantt.sh` = sum |ref_ar - mine_ar| over 2 files vs
+`reference-gantt/`. GANTT_TOTAL_ERR = 0.038 — the aspect ratio matched the
+mermaid references almost exactly on the FIRST render (220-02 ref 2.154 /
+mine 2.175; 220-01 ref 4.558 / mine 4.575). The 10 iterations therefore focused
+on VISUAL fidelity, not proportions.
+- `glayout.DefaultConfig`: Margin=8, TitleH=40, LeftPad=100, RightPad=120,
+  BarH=20, BarGap=4, AxisH=34, TopPad=12, FontSize=12, SectionFont=13,
+  MinChartW=560.
+- `grender.DefaultTheme`: Bands = [#E6E6FA lavender, #F7F7FF near-white,
+  #FCFCE3 light-yellow] cycled by section index; BarNormal #8A90DD, BarActive
+  #6A6AD6, BarDone #BFC7D5 (grey), BarCrit #FF3737 (red), Grid #D0D0D0, Today
+  red.
+
+## G5. GOTCHA — Go color.RGBA is ALPHA-PREMULTIPLIED
+
+The single biggest fix during iteration: section bands first used
+`color.RGBA{128,128,192,40}` (semi-transparent). Go's `image/color.RGBA` is
+**alpha-premultiplied**, so RGB values must be <= alpha; `{128,128,192,40}` is
+an invalid/opaque DARK color and rendered as saturated purple, not a light
+tint. Fix: use SOLID light RGB (alpha 255). Never use alpha < max with raw RGB
+in this codebase — precompute the tint over white instead.
+
+## G6. KNOWN ISSUES / OPEN WORK (gantt)
+
+- GI1. Section band colors cycle a fixed 3-color palette by index; mermaid's
+  `numberSectionStyles` config isn't read. Fine for testdata.
+- GI2. `excludes` / weekends ignored, so tasks spanning excluded days are not
+  extended as mermaid does. No testdata uses them.
+- GI3. Milestone/outside labels use the regular font (gofont has no bundled
+  italic); mermaid italicizes milestone labels. Cosmetic.
+- GI4. Chart width fixed (MinChartW); mermaid sizes to content. Aspect ratio
+  still matched because both axes scale together.
+- GI5. `after`/`until` implemented but untested against a reference.
+
+## G7. Reproduce gantt references + compare
+
+```bash
+mkdir -p reference-gantt
+for f in testdata/*.mmd; do
+  head -1 "$f" | grep -qE '^gantt' || continue
+  base=$(basename "$f" .mmd)
+  mmdc -i "$f" -o "reference-gantt/$base.png" -b white
+done
+./compare-gantt.sh
+```
+
+## G8. Verification gate (now covers all THREE types)
+
+`go build ./... && go vet ./... && go test ./... && ./compare.sh &&
+./compare-seq.sh && ./compare-gantt.sh`
+Flowchart MUST stay 7.391, sequence <= 2.659, gantt <= 0.038. Spot-check
+220-project-timeline-02 (3 sections, bars by tag, milestones, today line) and
+220-project-timeline-01 (Legend: done/active/crit swatches).

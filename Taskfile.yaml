@@ -1,0 +1,31 @@
+# Taskfile.dev.yml — development tasks for gmaid.
+# Run with:  task -t Taskfile.dev.yml <task>
+# e.g.       task -t Taskfile.dev.yml build
+#            task -t Taskfile.dev.yml render
+version: '3'
+
+vars:
+  BIN: ./gmaid
+  SRC_DIR: testdata
+  OUT_DIR: output
+
+tasks:
+  build:
+    desc: Build the gmaid binary.
+    cmds:
+      - go build -o {{.BIN}} .
+    sources:
+      - '**/*.go'
+    generates:
+      - '{{.BIN}}'
+
+  render:
+    desc: Render every .mmd in SRC_DIR to OUT_DIR via `gmaid -i` (mmdc-style).
+    deps: [build]
+    cmds:
+      - mkdir -p {{.OUT_DIR}}
+      - |
+        for inputfile in {{.SRC_DIR}}/*.mmd; do
+          base=$(basename "$inputfile" .mmd)
+          {{.BIN}} -i "$inputfile" -o "{{.OUT_DIR}}/$base.png" || true
+        done
