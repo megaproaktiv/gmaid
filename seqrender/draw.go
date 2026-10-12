@@ -138,7 +138,10 @@ func (r *Renderer) drawNumber(dc *gg.Context, m seqlayout.Message) {
 	dc.Fill()
 	dc.SetFontFace(r.numFace.FontFace())
 	dc.SetColor(r.theme.NumberText)
-	dc.DrawStringAnchored(itoa(m.Number), cx, cy, 0.5, 0.5)
+	// gg anchors text by its full bounding box (incl. descender space), which
+	// pushes digits visually low. Nudge up by a small fraction of the font size
+	// so the number sits in the geometric center of the circle.
+	dc.DrawStringAnchored(itoa(m.Number), cx, cy-1.2, 0.5, 0.5)
 }
 
 // drawNote renders a note box.

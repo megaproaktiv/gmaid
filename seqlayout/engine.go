@@ -56,20 +56,22 @@ func (e *Engine) Layout(d *seqmodel.Diagram) *Diagram {
 	// --- 2. Column center X positions ---
 	idx := func(id string) int { return d.Index(id) }
 
-	// --- 2. Label-proportional inter-column gaps ---
-	// mermaid spaces adjacent columns so the widest message label spanning a
-	// boundary fits. gapBetween[i] is the clear space between column i and i+1
-	// (edge to edge). A message from column a to b (a<b) must fit its label
-	// across the b-a boundaries, so we require the single-boundary case to hold
-	// the whole label, and multi-column spans distribute their label width.
-	gapBetween := make([]float64, n) // index i = gap between col i and i+1
-	for i := range gapBetween {
-		gapBetween[i] = cfg.ActorGap
-	}
-	// A labeled message gap is the text width plus 4 space-widths of padding on
-	// each side; "4 spaces" is measured in the actual message font.
+	// --- 2. Label-proportional inter-column spacing ---
+	// centerGap[i] is the required CENTER-to-center distance between lifeline i
+	// and i+1. A message label sits centered between the two lifelines, so the
+	// only thing that must fit there is the label text plus its side padding —
+	// NOT the actor-box half-widths (the label may overhang the boxes). Using
+	// center distance avoids the boxes silently widening the gap.
+	centerGap := make([]float64, n) // index i = center distance col i -> i+1
 	spaceW, _ := e.small.Measure(" ")
-	pad := 8 * spaceW               // 4 spaces left + 4 spaces right
+	pad := 4 * spaceW // 2 spaces left + 2 spaces right
+	// minimum center distance that keeps adjacent boxes from overlapping
+	minCenter := func(i int) float64 {
+		return actorW[i]/2 + cfg.ActorGap + actorW[i+1]/2
+	}
+	for i := 0; i < n-1; i++ {
+		centerGap[i] = minCenter(i)
+	}
 	selfExtra := make([]float64, n) // extra width to the right for self-loops
 
 	for _, ev := range d.Events {
@@ -95,8 +97,8 @@ func (e *Engine) Layout(d *seqmodel.Diagram) *Diagram {
 			nb := hi - lo // number of boundaries spanned
 			per := (lw + pad) / float64(nb)
 			for b := lo; b < hi; b++ {
-				if per > gapBetween[b] {
-					gapBetween[b] = per
+				if per > centerGap[b] {
+					centerGap[b] = per
 				}
 			}
 		case seqmodel.EvNote:
@@ -113,10 +115,10 @@ func (e *Engine) Layout(d *seqmodel.Diagram) *Diagram {
 				}
 				nb := hi - lo
 				if nb > 0 {
-					per := (lw - sumHalfWidths(actorW, lo, hi)) / float64(nb)
+					per := lw / float64(nb)
 					for b := lo; b < hi; b++ {
-						if per > gapBetween[b] {
-							gapBetween[b] = per
+						if per > centerGap[b] {
+							centerGap[b] = per
 						}
 					}
 				}
@@ -124,23 +126,34 @@ func (e *Engine) Layout(d *seqmodel.Diagram) *Diagram {
 		}
 	}
 
-	// Place columns left to right using the per-boundary gaps and self-extras.
+	// Place columns left to right using the per-boundary center distances and
+	// self-loop clearances.
 	cx := make([]float64, n)
 	x := cfg.Margin
 	for i := 0; i < n; i++ {
 		cx[i] = x + actorW[i]/2
-		adv := actorW[i]
 		if i < n-1 {
-			g := gapBetween[i]
+			g := centerGap[i]
 			// a self-loop on column i needs clearance before the next column
-			if selfExtra[i]+40 > g {
-				g = selfExtra[i] + 40
+			if need := actorW[i]/2 + selfExtra[i] + 40 + actorW[i+1]/2; need > g {
+				g = need
 			}
-			adv += g
+			x += g
 		}
-		x += adv
 	}
-	// Note: widen() helper retained below for note-over-single sizing.
+	// Safety net: guarantee adjacent boxes never overlap, regardless of the
+	// label-driven center distances above. Each box pair must be at least
+	// (halfWidth_i + ActorGap + halfWidth_{i+1}) apart center-to-center.
+	for i := 0; i < n-1; i++ {
+		need := actorW[i]/2 + cfg.ActorGap + actorW[i+1]/2
+		if cx[i+1]-cx[i] < need {
+			shift := need - (cx[i+1] - cx[i])
+			for j := i + 1; j < n; j++ {
+				cx[j] += shift
+			}
+		}
+	}
+	// widen() enforces a minimum center distance (used for note-over-single).
 	widen := func(i int, need float64) {
 		if i >= 0 && i < n-1 && cx[i+1]-cx[i] < need {
 			shift := need - (cx[i+1] - cx[i])
@@ -327,11 +340,12 @@ func (e *Engine) measureMaxLine(f *textmetrics.Face, lines []string) float64 {
 }
 
 // sumHalfWidths returns the actor-box width that a note spanning columns
-// lo..hi already covers via the half-boxes at each end (the span's own boxes),
-// so only the remaining label width needs to be distributed across the gaps.
+// lo..hi already covers via the half-boxes at each end.
 func sumHalfWidths(actorW []float64, lo, hi int) float64 {
 	if lo < 0 || hi >= len(actorW) || hi <= lo {
 		return 0
 	}
 	return actorW[lo]/2 + actorW[hi]/2
 }
+
+var _ = sumHalfWidths // retained helper; not currently referenced
