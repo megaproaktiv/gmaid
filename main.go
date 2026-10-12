@@ -31,15 +31,28 @@ import (
 	"gmaid/seqrender"
 )
 
+// Build information, injected via -ldflags by GoReleaser.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 func main() {
 	scale := flag.Float64("scale", 2.0, "output resolution scale factor")
 	outDir := flag.String("out", "output", "output directory for rendered PNGs (batch mode)")
 	verbose := flag.Bool("v", false, "verbose logging")
+	showVersion := flag.Bool("version", false, "print version and exit")
 	// mmdc-compatible flags so gmaid is a drop-in replacement for `mmdc -i ...`.
 	inFile := flag.String("i", "", "input .mmd file (mmdc-compatible)")
 	outFile := flag.String("o", "", "output .png file (mmdc-compatible)")
 	_ = flag.String("b", "", "background (accepted for mmdc compatibility, ignored)")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("gmaid %s (commit %s, built %s)\n", version, commit, date)
+		return
+	}
 
 	rr := &renderers{
 		fcEng:  layout.NewEngine(layout.DefaultConfig()),

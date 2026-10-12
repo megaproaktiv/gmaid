@@ -1,0 +1,57 @@
+# GoReleaser configuration for gmaid.
+# Docs: https://goreleaser.com
+version: 2
+
+project_name: gmaid
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: gmaid
+    main: .
+    binary: gmaid
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+
+archives:
+  - id: gmaid
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - readme.md
+      - changelog.md
+      - LICENSE*
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  # Use the hand-maintained changelog.md rather than auto-generating from commits.
+  disable: true
+
+release:
+  github:
+    owner: megaproaktiv
+    name: gmaid
+  draft: false
+  prerelease: auto
+  name_template: "v{{ .Version }}"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
