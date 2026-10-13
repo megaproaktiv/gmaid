@@ -20,6 +20,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/megaproaktiv/gmaid/gitlayout"
+	"github.com/megaproaktiv/gmaid/gitparser"
+	"github.com/megaproaktiv/gmaid/gitrender"
 	"github.com/megaproaktiv/gmaid/glayout"
 	"github.com/megaproaktiv/gmaid/gparser"
 	"github.com/megaproaktiv/gmaid/grender"
@@ -61,6 +64,8 @@ func main() {
 		seqRnd: seqrender.New(seqrender.DefaultTheme(), seqlayout.DefaultConfig(), *scale),
 		gEng:   glayout.NewEngine(glayout.DefaultConfig()),
 		gRnd:   grender.New(grender.DefaultTheme(), glayout.DefaultConfig(), *scale),
+		gitEng: gitlayout.NewEngine(gitlayout.DefaultConfig()),
+		gitRnd: gitrender.New(gitrender.DefaultTheme(), gitlayout.DefaultConfig(), *scale),
 	}
 
 	// mmdc-compatible single-file mode: `gmaid -i input.mmd [-o output.png]`.
@@ -133,6 +138,8 @@ type renderers struct {
 	seqRnd *seqrender.Renderer
 	gEng   *glayout.Engine
 	gRnd   *grender.Renderer
+	gitEng *gitlayout.Engine
+	gitRnd *gitrender.Renderer
 }
 
 // renderFile renders a single .mmd into outDir, deriving the PNG name from the
@@ -155,6 +162,15 @@ func (rr *renderers) renderTo(path, out string) error {
 	}
 
 	switch diagramKind(string(src)) {
+	case kindGit:
+		g, err := gitparser.Parse(string(src))
+		if err != nil {
+			return fmt.Errorf("gitGraph parse: %w", err)
+		}
+		if err := rr.gitRnd.Render(rr.gitEng.Layout(g), out); err != nil {
+			return fmt.Errorf("gitGraph render: %w", err)
+		}
+		return nil
 	case kindGantt:
 		c, err := gparser.Parse(string(src))
 		if err != nil {
@@ -243,6 +259,7 @@ const (
 	kindFlowchart
 	kindSequence
 	kindGantt
+	kindGit
 )
 
 func diagramKind(src string) kind {
@@ -253,6 +270,8 @@ func diagramKind(src string) kind {
 		return kindSequence
 	case "gantt":
 		return kindGantt
+	case "gitGraph":
+		return kindGit
 	default:
 		return kindUnknown
 	}

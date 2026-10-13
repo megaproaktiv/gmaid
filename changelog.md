@@ -7,12 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
+## [0.5.0] - 2026-10-13
 
-- **GitGraph (Git) diagram** rendering (`gitGraph`). Parser, layout and
-  rasterizer for branches, commits, checkouts, merges and tags. Test data is
-  already present and anonymised (`testdata/git-100.mmd`, `testdata/git-110.mmd`)
-  but is currently rendered only via `mmdc`; native `gmaid` support is pending.
+### Added
+
+- **GitGraph (Git) diagram** rendering (`gitGraph`) — new packages
+  `gitmodel/ gitparser/ gitlayout/ gitrender/`.
+  - Parser for `commit` (with `id:`, `tag:`, `type:`), `branch`,
+    `checkout`/`switch`, `merge` (with `tag:`/`type:`) and `cherry-pick`, with a
+    default `main` branch and `%%` comments ignored.
+  - Lane layout: one horizontal lane per branch in creation order, commits
+    placed left to right by global sequence, with parent and merge connectors
+    drawn as rounded elbows between lanes.
+  - Renderer: colored branch label boxes, thick colored connectors, filled
+    commit circles (ringed for merges, squares for highlights, crossed for
+    reverses), tag boxes with bullets, and rotated commit ids (auto/merge ids
+    suppressed to match mermaid).
+  - `compare-git.sh` fidelity harness reporting both aspect-ratio and
+    scale-normalized size error vs the `mmdc` references.
+- `gitparser` unit tests covering the test data and option parsing.
+
+## [0.4.0] - 2026-10-13
+
+### Changed
+
+- Module path renamed to `github.com/megaproaktiv/gmaid` so the tool is
+  installable via `go install github.com/megaproaktiv/gmaid@<version>`.
+- `govulncheck` now runs before every build (Taskfile and GoReleaser hooks).
+- Documented the Go 1.27.2 minimum as a security requirement.
 
 ## [0.3.0] - 2026-10-13
 
@@ -70,7 +92,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replacement, plus batch mode and a `Taskfile.dev.yml` (`build`, `render`).
 - 17 flowcharts in the test data.
 
-[Unreleased]: https://example.com/gmaid/compare/v0.3.0...HEAD
+[Unreleased]: https://example.com/gmaid/compare/v0.5.0...HEAD
+[0.5.0]: https://example.com/gmaid/releases/tag/v0.5.0
+[0.4.0]: https://example.com/gmaid/releases/tag/v0.4.0
 [0.3.0]: https://example.com/gmaid/releases/tag/v0.3.0
 [0.2.0]: https://example.com/gmaid/releases/tag/v0.2.0
 [0.1.0]: https://example.com/gmaid/releases/tag/v0.1.0

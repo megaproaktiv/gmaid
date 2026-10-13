@@ -26,6 +26,7 @@ Supported diagram types (dispatched by the first keyword):
 | `flowchart`       | `model/ parser/ layout/ render/`              |
 | `sequenceDiagram` | `seqmodel/ seqparser/ seqlayout/ seqrender/`  |
 | `gantt`           | `gmodel/ gparser/ glayout/ grender/`          |
+| `gitGraph`        | `gitmodel/ gitparser/ gitlayout/ gitrender/`  |
 
 ## Why: speed
 

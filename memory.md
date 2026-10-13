@@ -1,6 +1,6 @@
 # gmaid — Project Memory (session re-entry doc)
 
-Last updated: 2026-10-12. This file lets a fresh AI session resume work without
+Last updated: 2026-10-13. This file lets a fresh AI session resume work without
 re-deriving context. Read it fully before changing code.
 
 ## 1. What this is
@@ -17,7 +17,9 @@ keyword of the file:
   rasterizer (packages `gmodel/ gparser/ glayout/ grender/`). Added WITHOUT
   touching the flowchart or sequence packages.
 
-- Module: `gmaid` (see `go.mod`), Go 1.27.
+- Module: `github.com/megaproaktiv/gmaid` (see `go.mod`), Go 1.27.2. Renamed
+  from bare `gmaid` on 2026-10-13 so `go install github.com/megaproaktiv/gmaid@latest`
+  resolves (see §11). All internal imports use the full path.
 - Working dir: `/Users/gernotglawe/letsbuild/2026/gmaid`
 - Dependency: `github.com/fogleman/gg v1.3.0` (+ freetype + x/image), all pure Go.
 
@@ -408,3 +410,178 @@ done
 Flowchart MUST stay 7.391, sequence <= 2.659, gantt <= 0.038. Spot-check
 220-project-timeline-02 (3 sections, bars by tag, milestones, today line) and
 220-project-timeline-01 (Legend: done/active/crit swatches).
+
+
+---
+
+# RELEASE / DISTRIBUTION / SECURITY (added 2026-10-13)
+
+## 11. Module path + go install
+
+- `go.mod` module path is now `github.com/megaproaktiv/gmaid` (was bare
+  `gmaid`). ALL internal imports were rewritten from `"gmaid/<pkg>"` to
+  `"github.com/megaproaktiv/gmaid/<pkg>"` (sed across all *.go). The readme and
+  anonflow.go dev tool were updated too.
+- Why: `go install <path>@<version>` requires the module path in go.mod to match
+  the repo import path, or the proxy rejects it. The published v0.3.0 tag still
+  had `module gmaid`, so installs failed.
+- Install command (pinned, now in readme):
+  `go install github.com/megaproaktiv/gmaid@v0.4.0`
+- Go 1.27.2 minimum is intentional/documented as a SECURITY floor (older
+  toolchains lack fixes gmaid depends on). Stated in readme + go.mod `go 1.27.2`.
+
+## 12. Git state after 2026-10-13 session
+
+- Branch `main`, remote `git@github.com:megaproaktiv/gmaid.git`.
+- Commits pushed this session:
+  - `4879fe7` rename module path + rewrite imports.
+  - `c43b914` docs: readme install command + Go 1.27.2 security note.
+  - `d53f0d0` ci: run govulncheck before builds.
+  - (+ this memory update commit.)
+- Tag `v0.4.0` was created at `4879fe7` and pushed. NOTE: the readme/govulncheck
+  commits came AFTER the tag, so they are NOT in v0.4.0. If you want them in a
+  release, cut a new tag (e.g. v0.4.1) rather than force-moving v0.4.0.
+- **v0.5.0 (2026-10-13): first gitGraph release.** Because v0.4.0 was already
+  published (module rename), the gitGraph feature shipped as the next minor
+  v0.5.0. changelog.md gained 0.5.0 (gitGraph) and a back-filled 0.4.0 (module
+  rename / govulncheck) entry. Released with GoReleaser (`goreleaser release
+  --clean`) using the existing `.goreleaser.yaml` (which now runs go mod tidy,
+  go test, govulncheck before building linux/darwin/windows x amd64/arm64).
+
+## 13. govulncheck wired into builds
+
+- `Taskfile.yaml` (NOTE: actual filename is `Taskfile.yaml`, though readme/
+  header comment call it `Taskfile.dev.yml`): new `vulncheck` task; `build` now
+  has `deps: [vulncheck]` so it scans before compiling.
+- `.goreleaser.yaml`: added to `before.hooks` after `go test ./...`.
+- Both invoke `go run golang.org/x/vuln/cmd/govulncheck@latest ./...` (no global
+  install needed, CI-friendly). Last run: "No vulnerabilities found."
+
+## 14. Sophos CryptoGuard "ransomware" alert — FALSE POSITIVE (resolved)
+
+- 2026-10-13 ~01:21 Sophos flagged
+  `~/Library/Caches/go-build/9f/9f20786...-d/gmaid` as ransomware.
+- That path is the Go BUILD CACHE; the file is a normal Mach-O arm64 executable
+  whose content-hash matches its cache filename (untampered, a legit `gmaid`
+  build from 00:54).
+- Source audit found ZERO malicious capabilities: no net/http/net, no
+  os/exec/exec.Command/syscall.Exec, no crypto/aes|cipher, no
+  os.Remove/RemoveAll. Only 3 deps (fogleman/gg, golang/freetype,
+  golang.org/x/image). The ONLY os.WriteFile in the tree is in anonflow.go,
+  which is `//go:build ignore` and NOT in the binary. govulncheck clean.
+- Root cause: behavioral heuristic — a fresh unsigned native binary in a cache
+  dir that rapidly reads many .mmd and writes many .png (batch render of 51
+  diagrams) pattern-matches ransomware encrypting a folder. It only ever reads
+  inputs and writes NEW png files; never modifies/deletes originals.
+- Fix/recommendation: add Sophos exclusion for `~/Library/Caches/go-build/`
+  (and optionally `~/go/bin`). Optionally codesign+notarize release binaries via
+  goreleaser to reduce heuristic flags on distributed artifacts (NOT yet
+  configured). `go clean -cache` safely clears the flagged cache file.
+
+
+---
+
+# GITGRAPH DIAGRAMS (added 2026-10-13)
+
+## GG1. Packages (all NEW; flowchart/sequence/gantt packages NOT modified)
+
+- `gitmodel/gitmodel.go` — Graph{Branches, Commits, MainBranch; New(mainName),
+  AddBranch, Branch, HasBranch}. Branch{Name, Index, Order} (Index/Order =
+  creation order, drives lane + color). Commit{ID, AutoID, Tag, Kind, Branch,
+  Seq, Parent, MergeFrom}. CommitKind = Normal/Merge/Reverse/Highlight/
+  CherryPick. Parent and MergeFrom are indices into Commits (-1 = none). AutoID
+  marks ids that mermaid does NOT draw (merge + bare-commit auto ids).
+- `gitparser/gitparser.go` — Parse(src). Header `gitGraph` (tolerates
+  `gitGraph:` / `gitGraph LR:` via HasPrefix). Directives: commit [id:/tag:/
+  type:], branch NAME, checkout|switch NAME, merge NAME [tag:/type:],
+  cherry-pick id:. Default branch "main". current branch tracked; branchTip map
+  gives each commit its Parent; merge commits get MergeFrom = source branch tip
+  and Kind=CommitMerge; auto ids are sequential ints with AutoID=true.
+  parseCommitOpts/extractOpt read quoted ("...") or bare (type:) values.
+  `gitparser_test.go`: 3 tests (all testdata parse sane; exact git-100
+  structure; option extraction) — all pass.
+- `gitlayout/gitlayout.go` — horizontal lanes, one row per branch by Branch.
+  Order; laneY(order)=Margin+TopPad+order*LaneGap; commitX(seq)=Margin+labelW+
+  FirstCommit+seq*CommitSep (x advances by GLOBAL seq, not per-branch).
+  LaneLabel = colored box on left (width = max branch-name width, floored at
+  LabelBoxW). CommitDot carries ShowID=!AutoID. Connectors: each commit->parent
+  and merge->source; same-lane = straight, cross-lane = rounded elbow. Canvas:
+  W=commitX(maxSeq)+CommitSep+Margin; H=laneY(nBranch-1)+BottomPad+Margin.
+- `gitrender/gitrender.go` — gg rasterizer. Draw order: connectors (thick
+  Radius*0.9 rounded) -> commit dots -> tags -> rotated commit ids -> branch
+  label boxes. Dots: normal=filled circle, merge=ringed (color/white/color-core),
+  highlight=square, reverse=crossed. Tag = light-yellow rounded box + bullet +
+  connector line above the commit. Commit ids drawn rotated 45deg BELOW the dot,
+  and ONLY when ShowID (auto/merge ids suppressed, matching mermaid).
+
+## GG2. Dispatch (main.go — only shared file touched)
+
+- `kind` enum gained `kindGit`; `diagramKind` maps first word "gitGraph".
+- `renderers` struct gained gitEng/gitRnd; `renderTo` has a `case kindGit`.
+- Flowchart/sequence/gantt branches are byte-identical to before. collectFiles
+  already includes any kind != kindUnknown, so gitGraph files are auto-picked.
+- `go run .` now renders 53 files (17 flowchart + 32 sequence + 2 gantt + 2 git).
+
+## GG3. gitGraph feature coverage (verified on 2 testdata files)
+
+commit (bare/id/tag/type), branch, checkout/switch, merge (+tag), default main
+branch. Parser ALSO supports cherry-pick, type: REVERSE/HIGHLIGHT, switch alias
+(not in testdata). Orientation is always the mermaid default (horizontal lanes).
+
+## GG4. Fidelity metric + config (gitGraph)
+
+Metric: `./compare-git.sh` vs `reference-git/` (regenerate with mmdc, see GG6).
+This script is MORE ACCURATE than the ar-only harnesses (per the user's request):
+it is self-contained (renders ONLY gitGraph via `gmaid -i`, mmdc-style) and
+reports TWO numbers — aspect-ratio displacement AND scale-normalized size error.
+gmaid renders at -scale 2 by default; the script de-scales mine by SCALE
+(default 2, override `SCALE=3 ./compare-git.sh`) so size is logical-pixel.
+- Result: **GIT_AR_ERR=0.032** (0.016/file) and **GIT_SIZE_ERR=0.010**
+  (de-scaled mine≈625x397 vs ref 625x393 — width exact, +4px height).
+  0.016/file ar beats the per-file averages of flowchart (~0.43), seq (~0.08)
+  and matches gantt (~0.019). Not chasing the last 4px: it is the descender
+  safety margin for the rotated "object expedition" commit id.
+- `gitlayout.DefaultConfig`: Margin=10, LabelBoxW=118, LabelBoxH=28, LabelPadX=12,
+  LaneGap=87, CommitSep=49, FirstCommit=36, TopPad=34, BottomPad=82, Radius=9,
+  FontSize=13, LabelFont=15, TagFont=12.
+- `gitrender` branch palette (cycled by creation index, sampled from mmdc PNG):
+  #0000E0 blue(main), #D0D000 yellow, #90E000 green, #0070E0 bright-blue, then
+  orange/purple/teal/pink for >4 branches. Tag box #FFFFCC, id text #333333.
+
+## GG5. KNOWN ISSUES / OPEN WORK (gitGraph)
+
+- GGI1. Merge/branch connector elbows turn near the CHILD column; mermaid's
+  risers sometimes sit at the source column. Visually equivalent on testdata;
+  not pixel-matched.
+- GGI2. Only the default horizontal orientation is drawn; `gitGraph TB:`
+  (vertical) is parsed-tolerant but laid out horizontally.
+- GGI3. cherry-pick / REVERSE / HIGHLIGHT render paths exist but are untested
+  against a reference (no testdata exercises them).
+- GGI4. Same aspect-ratio-proxy caveat as the other types, mitigated here by the
+  added size metric.
+
+## GG6. Reproduce gitGraph references + compare
+
+```bash
+mkdir -p reference-git
+for f in testdata/*.mmd; do
+  head -1 "$f" | grep -qE '^\s*gitGraph' || continue
+  base=$(basename "$f" .mmd)
+  mmdc -i "$f" -o "reference-git/$base.png" -b white
+done
+./compare-git.sh          # per-file ar + size err, GIT_AR_ERR + GIT_SIZE_ERR
+```
+`reference-git/` is a regenerable artifact (safe to delete).
+
+## GG7. PRE-EXISTING METRIC DRIFT (important for a fresh session)
+
+As of 2026-10-13 the flowchart metric reads 7.801 (memory records 7.391) and
+sequence reads 21.474 (memory records 2.659). This drift is NOT from the
+gitGraph work: it was PROVEN pre-existing by stashing all gitGraph changes and
+re-running on clean HEAD — identical 7.801 / 21.474. The gitGraph change set
+touched only main.go dispatch + the four new git* packages; zero flowchart/
+sequence/gantt source changed (git diff --stat confirms). The drift comes from
+`reference*/` PNGs having been regenerated with a different mmdc version than
+when 7.391/2.659 were recorded. Do NOT attribute it to git support, and do NOT
+"fix" seq/flowchart layout to chase it without first re-establishing the
+reference baseline.
