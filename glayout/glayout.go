@@ -6,8 +6,8 @@ package glayout
 import (
 	"time"
 
-	"gmaid/gmodel"
-	"gmaid/textmetrics"
+	"github.com/megaproaktiv/gmaid/gmodel"
+	"github.com/megaproaktiv/gmaid/textmetrics"
 )
 
 // Config holds spacing parameters (pixels, pre-scale), tuned mermaid-like.

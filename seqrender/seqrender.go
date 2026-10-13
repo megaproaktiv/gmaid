@@ -11,9 +11,9 @@ import (
 
 	"github.com/fogleman/gg"
 
-	"gmaid/seqlayout"
-	"gmaid/seqmodel"
-	"gmaid/textmetrics"
+	"github.com/megaproaktiv/gmaid/seqlayout"
+	"github.com/megaproaktiv/gmaid/seqmodel"
+	"github.com/megaproaktiv/gmaid/textmetrics"
 )
 
 // Theme holds the sequence-diagram palette.

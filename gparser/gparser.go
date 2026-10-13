@@ -16,7 +16,7 @@ import (
 	"bufio"
 	"strings"
 
-	"gmaid/gmodel"
+	"github.com/megaproaktiv/gmaid/gmodel"
 )
 
 // Parse reads gantt source and returns a chart with resolved dates.

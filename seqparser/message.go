@@ -3,7 +3,7 @@ package seqparser
 import (
 	"strings"
 
-	"gmaid/seqmodel"
+	"github.com/megaproaktiv/gmaid/seqmodel"
 )
 
 // parseMessage parses `A->>B: text`, `A-->>B:text`, self-messages, and the

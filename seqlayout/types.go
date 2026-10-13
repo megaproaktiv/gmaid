@@ -5,7 +5,7 @@
 package seqlayout
 
 import (
-	"gmaid/seqmodel"
+	"github.com/megaproaktiv/gmaid/seqmodel"
 )
 
 // Config holds spacing parameters (pixels, pre-scale), tuned mermaid-like.

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"gmaid/gmodel"
+	"github.com/megaproaktiv/gmaid/gmodel"
 )
 
 // resolveDates computes each task's Start/End from its raw spec, handling

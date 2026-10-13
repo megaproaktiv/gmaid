@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"gmaid/model"
+	"github.com/megaproaktiv/gmaid/model"
 )
 
 // A more precise operator finder: we scan for the connector and classify it.

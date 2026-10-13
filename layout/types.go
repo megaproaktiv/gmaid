@@ -5,7 +5,7 @@
 package layout
 
 import (
-	"gmaid/model"
+	"github.com/megaproaktiv/gmaid/model"
 )
 
 // Config holds spacing and sizing parameters (in pixels, pre-scale).

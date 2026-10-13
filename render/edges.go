@@ -5,8 +5,8 @@ import (
 
 	"github.com/fogleman/gg"
 
-	"gmaid/layout"
-	"gmaid/model"
+	"github.com/megaproaktiv/gmaid/layout"
+	"github.com/megaproaktiv/gmaid/model"
 )
 
 // drawEdge renders an edge polyline with the appropriate line style and

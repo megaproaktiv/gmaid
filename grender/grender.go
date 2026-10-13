@@ -11,9 +11,9 @@ import (
 
 	"github.com/fogleman/gg"
 
-	"gmaid/glayout"
-	"gmaid/gmodel"
-	"gmaid/textmetrics"
+	"github.com/megaproaktiv/gmaid/glayout"
+	"github.com/megaproaktiv/gmaid/gmodel"
+	"github.com/megaproaktiv/gmaid/textmetrics"
 )
 
 // Theme holds the gantt palette.

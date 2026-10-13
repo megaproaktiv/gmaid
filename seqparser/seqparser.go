@@ -16,7 +16,7 @@ import (
 	"bufio"
 	"strings"
 
-	"gmaid/seqmodel"
+	"github.com/megaproaktiv/gmaid/seqmodel"
 )
 
 // Parse reads sequence-diagram source and returns the populated diagram.

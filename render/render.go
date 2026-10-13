@@ -9,8 +9,8 @@ import (
 
 	"github.com/fogleman/gg"
 
-	"gmaid/layout"
-	"gmaid/textmetrics"
+	"github.com/megaproaktiv/gmaid/layout"
+	"github.com/megaproaktiv/gmaid/textmetrics"
 )
 
 // Theme holds the default palette used when a node has no explicit style.

@@ -1,8 +1,8 @@
 package layout
 
 import (
-	"gmaid/model"
-	"gmaid/textmetrics"
+	"github.com/megaproaktiv/gmaid/model"
+	"github.com/megaproaktiv/gmaid/textmetrics"
 )
 
 // Engine performs layout for a graph.

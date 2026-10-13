@@ -1,4 +1,4 @@
-module gmaid
+module github.com/megaproaktiv/gmaid
 
 go 1.27.2
 

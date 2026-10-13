@@ -5,8 +5,8 @@ import (
 
 	"github.com/fogleman/gg"
 
-	"gmaid/layout"
-	"gmaid/model"
+	"github.com/megaproaktiv/gmaid/layout"
+	"github.com/megaproaktiv/gmaid/model"
 )
 
 // drawSubgraph renders a subgraph container box with its title.

@@ -1,8 +1,8 @@
 package seqlayout
 
 import (
-	"gmaid/seqmodel"
-	"gmaid/textmetrics"
+	"github.com/megaproaktiv/gmaid/seqmodel"
+	"github.com/megaproaktiv/gmaid/textmetrics"
 )
 
 // Engine lays out sequence diagrams.

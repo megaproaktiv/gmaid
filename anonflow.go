@@ -18,7 +18,7 @@ import (
 	"strings"
 	"unicode"
 
-	"gmaid/parser"
+	"github.com/megaproaktiv/gmaid/parser"
 )
 
 var (

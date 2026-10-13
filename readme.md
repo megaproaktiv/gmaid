@@ -32,18 +32,18 @@ best of 3 runs). `gmaid` is the compiled binary (`go build -o gmaid .`); both
 tools invoked once per file via `-i` for an apples-to-apples comparison.
 
 ### Single file (one diagram, cold per-call startup)
-
-| Tool  | Time per render | Relative |
-|-------|-----------------|----------|
-| mmdc  | ~0.69 s         | 1×       |
-| gmaid | ~0.037 s        | **~18.9× faster** |
-
-### Batch of 10 files (per-file `-i` invocation loop)
-
-| Tool  | Total (10 files) | Per file | Relative |
-|-------|------------------|----------|----------|
-| mmdc  | 7.36 s           | ~736 ms  | 1×       |
-| gmaid | 0.49 s           | ~49 ms   | **~15.0× faster** |
+  
+  | Tool  | Time per render | Relative |
+  |-------|-----------------|----------|
+  | mmdc  | ~0.69 s         | 1×       |
+  | gmaid | ~0.037 s        | **~18.9× faster** |
+  
+  ### Batch of 10 files (per-file `-i` invocation loop)
+  
+  | Tool  | Total (10 files) | Per file | Relative |
+  |-------|------------------|----------|----------|
+  | mmdc  | 7.36 s           | ~736 ms  | 1×       |
+  | gmaid | 0.49 s           | ~49 ms   | **~15.0× faster** |
 
 ### gmaid batch mode (all 51 diagrams in one process)
 

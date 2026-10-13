@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gmaid/model"
+	"github.com/megaproaktiv/gmaid/model"
 )
 
 // declareNodeToken parses a single node token such as:

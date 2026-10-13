@@ -20,15 +20,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gmaid/glayout"
-	"gmaid/gparser"
-	"gmaid/grender"
-	"gmaid/layout"
-	"gmaid/parser"
-	"gmaid/render"
-	"gmaid/seqlayout"
-	"gmaid/seqparser"
-	"gmaid/seqrender"
+	"github.com/megaproaktiv/gmaid/glayout"
+	"github.com/megaproaktiv/gmaid/gparser"
+	"github.com/megaproaktiv/gmaid/grender"
+	"github.com/megaproaktiv/gmaid/layout"
+	"github.com/megaproaktiv/gmaid/parser"
+	"github.com/megaproaktiv/gmaid/render"
+	"github.com/megaproaktiv/gmaid/seqlayout"
+	"github.com/megaproaktiv/gmaid/seqparser"
+	"github.com/megaproaktiv/gmaid/seqrender"
 )
 
 // Build information, injected via -ldflags by GoReleaser.

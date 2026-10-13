@@ -3,9 +3,9 @@ package seqrender
 import (
 	"github.com/fogleman/gg"
 
-	"gmaid/seqlayout"
-	"gmaid/seqmodel"
-	"gmaid/textmetrics"
+	"github.com/megaproaktiv/gmaid/seqlayout"
+	"github.com/megaproaktiv/gmaid/seqmodel"
+	"github.com/megaproaktiv/gmaid/textmetrics"
 )
 
 // drawMessage renders a message arrow (straight or self-loop), its label and

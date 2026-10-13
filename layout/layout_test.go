@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"gmaid/parser"
+	"github.com/megaproaktiv/gmaid/parser"
 )
 
 func TestLayoutExamples(t *testing.T) {

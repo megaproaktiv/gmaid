@@ -12,7 +12,7 @@ import (
 	"bufio"
 	"strings"
 
-	"gmaid/model"
+	"github.com/megaproaktiv/gmaid/model"
 )
 
 // Parse reads mermaid source and returns the populated graph.
