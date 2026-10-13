@@ -9,6 +9,16 @@ gmaid -i input.mmd -o output.png     # mmdc-compatible single-file mode
 gmaid                                 # batch: render all supported .mmd in ./testdata -> ./output
 ```
 
+## Install
+
+```sh
+go install github.com/megaproaktiv/gmaid@v0.4.0
+```
+
+> **Requires Go 1.27.2 or newer.** This minimum is enforced for security
+> reasons — older toolchains are missing fixes that `gmaid` depends on. Check
+> your version with `go version`.
+
 Supported diagram types (dispatched by the first keyword):
 
 | Keyword           | Packages                                      |
