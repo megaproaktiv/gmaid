@@ -447,6 +447,12 @@ Flowchart MUST stay 7.391, sequence <= 2.659, gantt <= 0.038. Spot-check
   rename / govulncheck) entry. Released with GoReleaser (`goreleaser release
   --clean`) using the existing `.goreleaser.yaml` (which now runs go mod tidy,
   go test, govulncheck before building linux/darwin/windows x amd64/arm64).
+- **v0.5.5 (2026-10-13): GMAID_SCALE env var.** main.go resolveScale(): explicit
+  -scale flag wins (detected via flag.Visit), else GMAID_SCALE if a positive
+  float, else default 2.0; invalid/non-positive env warns and falls back.
+  Applies to all 4 renderers (shared *scale). Documented in readme "Output
+  resolution (DPI)" section with the 1.5/2/3 -> ~330/450/675 DPI table. Released
+  with GoReleaser as v0.5.5.
 
 ## 13. govulncheck wired into builds
 

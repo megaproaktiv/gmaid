@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-10-13
+
+### Added
+
+- **`GMAID_SCALE` environment variable** to set the output resolution / scale
+  factor without changing the command invocation. Precedence: an explicit
+  `-scale` flag wins; otherwise `GMAID_SCALE` is used if set; otherwise the
+  default of `2`. Invalid or non-positive values are ignored with a warning.
+  Documented in the readme with DPI guidance (1.5 ≈ 330 DPI, 2 ≈ 450 DPI,
+  3 ≈ 675 DPI).
+
 ## [0.5.0] - 2026-10-13
 
 ### Added
@@ -92,7 +103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replacement, plus batch mode and a `Taskfile.dev.yml` (`build`, `render`).
 - 17 flowcharts in the test data.
 
-[Unreleased]: https://example.com/gmaid/compare/v0.5.0...HEAD
+[Unreleased]: https://example.com/gmaid/compare/v0.5.5...HEAD
+[0.5.5]: https://example.com/gmaid/releases/tag/v0.5.5
 [0.5.0]: https://example.com/gmaid/releases/tag/v0.5.0
 [0.4.0]: https://example.com/gmaid/releases/tag/v0.4.0
 [0.3.0]: https://example.com/gmaid/releases/tag/v0.3.0

@@ -28,6 +28,36 @@ Supported diagram types (dispatched by the first keyword):
 | `gantt`           | `gmodel/ gparser/ glayout/ grender/`          |
 | `gitGraph`        | `gitmodel/ gitparser/ gitlayout/ gitrender/`  |
 
+## Output resolution (DPI)
+
+`gmaid` rasterizes at a configurable scale factor. The layout is computed in
+logical pixels and multiplied by the scale, so a higher scale yields a larger,
+sharper PNG at the same proportions.
+
+Set the scale in either of two ways:
+
+```sh
+gmaid -scale 1.5 -i input.mmd         # command-line flag
+GMAID_SCALE=1.5 gmaid -i input.mmd    # environment variable
+```
+
+Precedence: an explicit `-scale` flag always wins; otherwise `GMAID_SCALE` is
+used if set; otherwise the default of `2`. An invalid or non-positive
+`GMAID_SCALE` is ignored (with a warning) and the default applies.
+
+`GMAID_SCALE` is the practical lever for hitting a target print DPI without
+changing how you invoke the tool (handy in CI or a `Taskfile`). Rough guidance
+for a typical diagram:
+
+| `GMAID_SCALE` | Approx. DPI | Notes                                             |
+|---------------|-------------|---------------------------------------------------|
+| `1.5`         | ~330 DPI    | Comfortably above 300 DPI with a safety margin    |
+| `2` (default) | ~450 DPI    | Conservative; ~55% fewer pixels than scale `3`    |
+| `3`           | ~675 DPI    | Largest/sharpest; biggest files                   |
+
+Exact pixel counts depend on the diagram's logical size; use the table as a
+starting point and check the resulting PNG dimensions for your content.
+
 ## Why: speed
 
 `mmdc` (the official Mermaid CLI) drives a headless Chromium through Puppeteer,

@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/megaproaktiv/gmaid/gitlayout"
@@ -42,7 +43,7 @@ var (
 )
 
 func main() {
-	scale := flag.Float64("scale", 2.0, "output resolution scale factor")
+	scale := flag.Float64("scale", 2.0, "output resolution scale factor (env GMAID_SCALE; the -scale flag overrides it)")
 	outDir := flag.String("out", "output", "output directory for rendered PNGs (batch mode)")
 	verbose := flag.Bool("v", false, "verbose logging")
 	showVersion := flag.Bool("version", false, "print version and exit")
@@ -51,6 +52,12 @@ func main() {
 	outFile := flag.String("o", "", "output .png file (mmdc-compatible)")
 	_ = flag.String("b", "", "background (accepted for mmdc compatibility, ignored)")
 	flag.Parse()
+
+	// Resolve the output scale. Precedence: an explicit -scale flag wins;
+	// otherwise GMAID_SCALE from the environment; otherwise the default (2.0).
+	// GMAID_SCALE lets you dial resolution/DPI without changing invocation,
+	// e.g. GMAID_SCALE=1.5 (~330 DPI) or GMAID_SCALE=2 (~450 DPI).
+	*scale = resolveScale(*scale)
 
 	if *showVersion {
 		fmt.Printf("gmaid %s (commit %s, built %s)\n", version, commit, date)
@@ -201,6 +208,33 @@ func (rr *renderers) renderTo(path, out string) error {
 	default:
 		return fmt.Errorf("unsupported diagram type")
 	}
+}
+
+// resolveScale returns the output scale factor. An explicit -scale flag on the
+// command line takes precedence; otherwise the GMAID_SCALE environment variable
+// is used if set to a positive number; otherwise flagScale (the default) is
+// returned. Invalid or non-positive GMAID_SCALE values are ignored with a
+// warning so a bad env var never silently breaks rendering.
+func resolveScale(flagScale float64) float64 {
+	// If -scale was passed explicitly, it wins over the environment.
+	explicit := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "scale" {
+			explicit = true
+		}
+	})
+	if explicit {
+		return flagScale
+	}
+	if v, ok := os.LookupEnv("GMAID_SCALE"); ok && strings.TrimSpace(v) != "" {
+		s, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		if err != nil || s <= 0 {
+			fmt.Fprintf(os.Stderr, "warning: ignoring invalid GMAID_SCALE=%q (want a positive number)\n", v)
+			return flagScale
+		}
+		return s
+	}
+	return flagScale
 }
 
 // outputPath maps SRC.mmd to SRC.png, optionally in outDir.
