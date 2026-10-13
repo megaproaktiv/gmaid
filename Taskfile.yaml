@@ -10,8 +10,18 @@ vars:
   OUT_DIR: output
 
 tasks:
+  vulncheck:
+    desc: Scan for known vulnerabilities with govulncheck.
+    cmds:
+      - go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+    sources:
+      - '**/*.go'
+      - go.mod
+      - go.sum
+
   build:
-    desc: Build the gmaid binary.
+    desc: Build the gmaid binary (runs vulncheck first).
+    deps: [vulncheck]
     cmds:
       - go build -o {{.BIN}} .
     sources:
