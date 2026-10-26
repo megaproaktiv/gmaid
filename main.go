@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/megaproaktiv/gmaid/gcss"
 	"github.com/megaproaktiv/gmaid/gitlayout"
 	"github.com/megaproaktiv/gmaid/gitparser"
 	"github.com/megaproaktiv/gmaid/gitrender"
@@ -50,7 +51,9 @@ func main() {
 	// mmdc-compatible flags so gmaid is a drop-in replacement for `mmdc -i ...`.
 	inFile := flag.String("i", "", "input .mmd file (mmdc-compatible)")
 	outFile := flag.String("o", "", "output .png file (mmdc-compatible)")
+	cssFile := flag.String("C", "", "CSS stylesheet for gantt task colors (mmdc-compatible)")
 	_ = flag.String("b", "", "background (accepted for mmdc compatibility, ignored)")
+	_ = flag.String("c", "", "config JSON (accepted for mmdc compatibility, ignored)")
 	flag.Parse()
 
 	// Resolve the output scale. Precedence: an explicit -scale flag wins;
@@ -73,6 +76,16 @@ func main() {
 		gRnd:   grender.New(grender.DefaultTheme(), glayout.DefaultConfig(), *scale),
 		gitEng: gitlayout.NewEngine(gitlayout.DefaultConfig()),
 		gitRnd: gitrender.New(gitrender.DefaultTheme(), gitlayout.DefaultConfig(), *scale),
+	}
+
+	// Optional external stylesheet for gantt bar colors (mmdc -C style.css).
+	if *cssFile != "" {
+		b, err := os.ReadFile(*cssFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: cannot read CSS %q: %v\n", *cssFile, err)
+		} else {
+			rr.gRnd.SetStyle(gcss.Parse(string(b)))
+		}
 	}
 
 	// mmdc-compatible single-file mode: `gmaid -i input.mmd [-o output.png]`.

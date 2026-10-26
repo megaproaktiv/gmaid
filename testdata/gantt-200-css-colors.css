@@ -1,0 +1,5 @@
+/* gmaid gantt CSS subset: color task bars by id (mmdc-compatible -C) */
+rect[id$="-ai1"]   { fill:#d62728; stroke:#7a1516; }
+rect[id*="-engc"]  { fill:#2ca02c !important; stroke:#145214; }
+rect[id$="-arch1"] { fill:#ff7f0e; stroke:#a35100; }
+rect[id$="-cons1"] { fill:#8c564b; stroke:#4a2c26; }

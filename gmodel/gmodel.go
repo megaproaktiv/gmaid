@@ -23,6 +23,8 @@ type Task struct {
 	Label     string
 	Tag       TaskTag
 	Milestone bool
+	Summary   bool // MS-Project-style summary/rollup bar (gmaid extension)
+	SameLine  bool // render on the same row as the previous task (gmaid extension)
 	Start     time.Time
 	End       time.Time
 	Section   string
@@ -41,6 +43,24 @@ func (t *Task) SetRaw(start, end string) {
 func (t *Task) RawStart() string { return t.rawStart }
 func (t *Task) RawEnd() string   { return t.rawEnd }
 
+// LinkKind is the dependency relationship type between two tasks.
+type LinkKind int
+
+const (
+	LinkFS LinkKind = iota // finish-to-start (default)
+	LinkSS                 // start-to-start
+	LinkFF                 // finish-to-finish
+	LinkSF                 // start-to-finish
+)
+
+// Link is a dependency arrow between two tasks (gmaid extension; mermaid gantt
+// has no native arrow syntax).
+type Link struct {
+	From string // predecessor task id
+	To   string // successor task id
+	Kind LinkKind
+}
+
 // Section groups tasks under a named band.
 type Section struct {
 	Name  string
@@ -56,6 +76,7 @@ type Chart struct {
 	TickUnit   string // "day","week","month",...
 	Sections   []*Section
 	Tasks      []*Task // all tasks in order (also referenced by sections)
+	Links      []Link  // dependency arrows (gmaid extension)
 
 	Min, Max time.Time // overall date range (set during resolution)
 }

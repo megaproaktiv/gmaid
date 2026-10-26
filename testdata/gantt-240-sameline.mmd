@@ -1,0 +1,15 @@
+gantt
+    title Same-line tasks (weekly sums on one row)
+    dateFormat YYYY-MM-DD
+    axisFormat %b
+    tickInterval 1month
+
+    section Connect Engineer weekly
+    W1 3  :w1, 2026-01-05, 5d
+    &W2 9 :w2, 2026-01-12, 5d
+    &W3 7 :w3, 2026-01-19, 5d
+    &W4 5 :w4, 2026-01-26, 5d
+
+    section Normal (stacked)
+    Design :d1, 2026-01-05, 15d
+    Build  :b1, 2026-01-20, 20d

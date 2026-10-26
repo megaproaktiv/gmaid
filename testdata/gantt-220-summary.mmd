@@ -1,0 +1,15 @@
+gantt
+    title Gantt summary tasks (MS-Project rollup bars)
+    dateFormat YYYY-MM-DD
+    axisFormat %b
+    tickInterval 1month
+
+    section Phase 1
+    Phase 1 rollup  :summary, p1, 2026-01-01, 2026-03-31
+    Design          :d1, 2026-01-01, 30d
+    Build           :b1, 2026-02-01, 40d
+
+    section Phase 2
+    Phase 2 rollup  :summary, p2, 2026-04-01, 2026-06-30
+    Integrate       :i1, 2026-04-01, 35d
+    Cut-over        :milestone, m1, 2026-06-30, 0d

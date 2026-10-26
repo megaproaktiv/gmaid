@@ -591,3 +591,112 @@ sequence/gantt source changed (git diff --stat confirms). The drift comes from
 when 7.391/2.659 were recorded. Do NOT attribute it to git support, and do NOT
 "fix" seq/flowchart layout to chase it without first re-establishing the
 reference baseline.
+
+
+---
+
+# GANTT EXTENSIONS + CSS (added 2026-10-26)
+
+Added WITHOUT touching flowchart/sequence/git packages. Gantt metric stayed
+0.038 throughout (verified with ./compare-gantt.sh). Only gmodel/ gparser/
+glayout/ grender/ main.go changed, plus a NEW gcss/ package.
+
+## GX1. CSS styling of gantt bars (`gmaid -C style.css`)
+
+- NEW package `gcss/` (gcss.go + color.go + gcss_test.go). Parses a tiny CSS
+  subset and, given a task id, returns the winning fill/stroke.
+- Mermaid renders each task bar as `<rect id="my-svg-<taskid>">`. gcss emulates
+  that id ("my-svg-" + taskID) and matches ATTRIBUTE SELECTORS:
+  `[id="x"]` `[id^="x"]` `[id$="x"]` `[id*="x"]` (leading `rect`/`id` optional).
+  Declarations supported: `fill:` and `stroke:` (others ignored). `!important`
+  honored (outranks non-important); later source order wins on ties.
+- COMMA-SEPARATED SELECTOR LISTS are supported (e.g.
+  `rect[id*="-pm"], rect[id*="-lead_"] { fill:... }`). This was a bug the first
+  cut missed — each comma part becomes its own rule sharing the body. Without
+  it the aggregated "Project lead" row (ids lead_11..) stayed default-colored.
+- Wiring: main.go `-C` flag (mmdc-compatible) loads the sheet and calls
+  `grender.Renderer.SetStyle(*gcss.Sheet)`. drawBar/drawMilestone/drawSummary
+  override fill/stroke from the sheet by `b.Task.ID`.
+- Color parsing: #rgb/#rrggbb/#rrggbbaa (alpha PREMULTIPLIED per G5) + a few
+  named colors. Validated against the real conrad plan.css (wp4_ai->#d62728,
+  engc_->#2ca02c, lead_->#1f77b4, etc.).
+- Also added `-c` flag: accepted + IGNORED (mmdc config file compatibility).
+
+## GX2. `<br>` line breaks + p-with-overline (p̄) in gantt
+
+- `gparser.normalizeBreaks()` converts `<br>`,`<br/>`,`<br />`,`\n` to real
+  newlines; applied to BOTH section names and task labels. Section titles can
+  now be multi-line (e.g. `section WP1<br/>Email channel<br/>80 PD`).
+- grender draws multi-line section names AND bar labels (split via
+  textmetrics.SplitLines, line height = fontSize+3, vertically centered).
+- COMBINING MACRON (U+0304) / OVERLINE (U+0305) have NO glyph in the Go builtin
+  font (truetype Index==0 -> tofu box). FIX: `grender.drawLabel()` strips the
+  combining mark and draws a short horizontal bar itself over the preceding
+  base glyph (measured via face.Measure of the substring). So "0,7p̄" renders
+  as p with a drawn overline. ALL gantt label drawing goes through drawLabel.
+
+## GX3. Dependency arrows (FS/SS/FF/SF) — gmaid extension
+
+- Mermaid gantt has NO arrow syntax (open feature request mermaid#7300). gmaid
+  adds a `link` directive:
+    `link <fromId> <toId>`          (implicit FS)
+    `link <fromId> FS|SS|FF|SF <toId>`
+    `link <fromId> --> <toId>`      (--> treated as FS)
+  German aliases accepted: EA/AA/EE/AE and Ende-Anfang etc.
+- model: gmodel.Link{From,To,Kind}, Chart.Links. parser: parseLink/linkKind.
+- layout: glayout.LinkPath{Pts []{X,Y}} computed in Layout via a taskID->Bar
+  map; `linkPath()` picks source/target edges by kind (FS end->start, SS
+  start->start, FF end->end, SF start->end) and routes an orthogonal polyline
+  (stub out of source, vertical run, into target edge).
+- render: grender.drawLink draws the polyline (collapsing duplicate points) +
+  a filled arrowhead on the final segment. Theme.Link color (#333).
+
+## GX4. Summary / Sammelvorgang tasks (MS-Project rollup bar) — extension
+
+- Tag `summary` on a task: `Phase 1 :summary, p1, 2026-01-01, 2026-03-31`.
+- model: Task.Summary. render: grender.drawSummary = slim solid spine bar +
+  DOWNWARD-POINTING filled triangles at both ends (the MS-Project bracket
+  look). Honors CSS fill override. Label drawn beside it (outside).
+
+## GX5. Same-line tasks (share one row) — extension
+
+- Prefix a task label with `&` OR add the `sameline` tag to render it on the
+  SAME row as the previous task instead of advancing a row. Lets e.g. a role's
+  weekly/monthly sums sit on ONE line:
+    `W1 3 :w1, ...`
+    `&W2 9 :w2, ...`   (& => same row as w1)
+- parser: strips leading `&`, sets Task.SameLine (also `sameline` tag).
+- layout: when SameLine && not first in section, reuse previous row Y and do
+  NOT advance rowIdx (so the section band height accounts only for real rows).
+
+## GX6. TEXT ALWAYS ON TOP (render order)
+
+- grender.Render now draws in strict layers: bands -> gridlines -> section
+  names -> BAR SHAPES (drawBar/drawSummary/drawMilestone draw shapes only) ->
+  dependency arrows -> BAR LABELS (new drawBarLabel pass) -> axis -> today ->
+  title. Labels were split out of the shape functions so no later bar or arrow
+  can overdraw text. drawBarLabel handles normal/milestone/summary label cases.
+
+## GX7. testdata examples (stored at user request, 2026-10-26)
+
+In ./testdata (both .mmd and rendered .png committed as feature references):
+- gantt-200-css-colors.mmd (+ .css)  — CSS id-selector coloring
+- gantt-210-dependencies.mmd          — FS/SS dependency arrows
+- gantt-220-summary.mmd               — summary rollup bars + milestone
+- gantt-230-br-macron.mmd             — <br/> multi-line + p̄ overline
+- gantt-240-sameline.mmd              — & same-line weekly sums
+NOTE: this intentionally overrides the older "never write PNGs into testdata"
+rule (G/§2) for these feature-reference images, per explicit user instruction.
+
+## GX8. Verification gate (unchanged commands)
+
+`go build ./... && go vet ./... && go test ./... && ./compare.sh &&
+./compare-seq.sh && ./compare-gantt.sh`
+New unit tests: gcss/gcss_test.go (selectors, !important, source order) and
+gparser/gparser_ext_test.go (link/summary/sameline/<br>). Gantt metric 0.038.
+NOTE: the current testdata flowchart/seq FILESET differs from the older memory
+baselines (files renamed to flowchart-NNN / the seq set changed), so
+TOTAL_ERR/SEQ_TOTAL_ERR now read differently than the historical 7.391/2.659 —
+this is a fileset change, NOT a regression (flowchart/seq/git CODE untouched;
+confirmed via `git diff --stat`: only gmodel/gparser/glayout/grender/main.go +
+new gcss/).

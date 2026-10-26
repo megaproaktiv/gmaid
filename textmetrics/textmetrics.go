@@ -81,3 +81,32 @@ func SplitLines(label string) []string {
 	}
 	return out
 }
+
+// WrapToWidth wraps each input line at word boundaries so no line exceeds
+// maxW pixels when measured with f. Existing (explicit) line breaks are kept.
+// A single word longer than maxW is left on its own line (not hard-split).
+func (f *Face) WrapToWidth(lines []string, maxW float64) []string {
+	if maxW <= 0 {
+		return lines
+	}
+	var out []string
+	for _, ln := range lines {
+		words := strings.Fields(ln)
+		if len(words) == 0 {
+			out = append(out, "")
+			continue
+		}
+		cur := words[0]
+		for _, w := range words[1:] {
+			cand := cur + " " + w
+			if cw, _ := f.Measure(cand); cw <= maxW {
+				cur = cand
+			} else {
+				out = append(out, cur)
+				cur = w
+			}
+		}
+		out = append(out, cur)
+	}
+	return out
+}

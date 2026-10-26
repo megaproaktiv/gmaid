@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-26
+
+### Added
+
+- **Gantt CSS styling** via an external stylesheet (`gmaid -C style.css`,
+  mmdc-compatible). New package `gcss/` parses a small CSS subset and colors
+  task bars by id. Supports attribute selectors `[id=]`, `[id^=]`, `[id$=]`,
+  `[id*=]` (matching the SVG id mermaid assigns, `my-svg-<taskid>`),
+  comma-separated selector lists, `fill:`/`stroke:` declarations, `!important`,
+  and source-order precedence. A `-c` config flag is accepted and ignored for
+  mmdc compatibility.
+- **`<br>` line breaks** in gantt section names and task labels (`<br>`,
+  `<br/>`, `<br />`, `\n`), rendered as multiple lines.
+- **Automatic word-wrap** of section names that do not fit the left column,
+  with a configurable extra line spacing (`LineSpacingPct`, default +20%). Band
+  height grows to fit the wrapped label and bars are vertically centered.
+- **Combining macron / overline** (U+0304 / U+0305) rendered as a drawn
+  overline above the base glyph (e.g. `p̄`), since the built-in font has no
+  glyph for the combining marks.
+- **Dependency arrows** (gmaid extension): `link <from> [FS|SS|FF|SF] <to>`
+  (also `-->`), drawn as real orthogonal arrows with arrowheads.
+- **Summary / rollup tasks** (`summary` tag): MS-Project-style summary bars
+  (slim spine with downward triangle end-caps). Honors CSS fill override so a
+  summary can keep any color.
+- **Same-line tasks** (`&` label prefix or `sameline` tag): render a task on
+  the same row as the previous one, so e.g. weekly/monthly sums share one line.
+  Labels on shared rows stay centered over their own bar.
+- Wider left text column and landscape-leaning default chart width for
+  A4-landscape-friendly output.
+
+### Fixed
+
+- Canvas height no longer leaves large empty space when same-line tasks are
+  used (height is computed from the real number of rows, not task count).
+- Bar labels are drawn in a final pass after all bars and dependency arrows so
+  text always stays on top of blocks.
+
+### Tests
+
+- `gcss/gcss_test.go` (selectors, `!important`, source order) and
+  `gparser/gparser_ext_test.go` (link / summary / sameline / `<br>`).
+- New gantt feature reference files in `testdata/` (`gantt-200`..`gantt-240`).
+
 ## [0.5.5] - 2026-10-13
 
 ### Added

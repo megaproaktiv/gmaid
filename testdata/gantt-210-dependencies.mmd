@@ -1,0 +1,15 @@
+gantt
+    title Gantt dependency arrows (FS/SS/FF/SF)
+    dateFormat YYYY-MM-DD
+    axisFormat %b
+    tickInterval 1month
+
+    section Chain
+    Design      :a, 2026-01-01, 20d
+    Build       :b, 2026-02-01, 30d
+    Test        :c, 2026-03-10, 20d
+    Docs        :d, 2026-02-05, 15d
+
+    link a FS b
+    link b FS c
+    link a SS d

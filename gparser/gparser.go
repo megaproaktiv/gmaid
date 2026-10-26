@@ -53,8 +53,12 @@ func Parse(src string) (*gmodel.Chart, error) {
 			strings.HasPrefix(lower, "vert "):
 			// not needed for the target files; ignored
 		case strings.HasPrefix(lower, "section "):
-			curSection = &gmodel.Section{Name: strings.TrimSpace(line[len("section "):])}
+			curSection = &gmodel.Section{Name: normalizeBreaks(strings.TrimSpace(line[len("section "):]))}
 			c.Sections = append(c.Sections, curSection)
+		case strings.HasPrefix(lower, "link "):
+			if l, ok := parseLink(strings.TrimSpace(line[len("link "):])); ok {
+				c.Links = append(c.Links, l)
+			}
 		default:
 			if t := parseTask(line); t != nil {
 				if curSection == nil {
@@ -77,13 +81,18 @@ func parseTask(line string) *gmodel.Task {
 	if colon < 0 {
 		return nil
 	}
-	label := strings.TrimSpace(line[:colon])
+	label := normalizeBreaks(strings.TrimSpace(line[:colon]))
 	meta := strings.TrimSpace(line[colon+1:])
+	sameLine := false
+	if strings.HasPrefix(label, "&") {
+		sameLine = true
+		label = strings.TrimSpace(strings.TrimPrefix(label, "&"))
+	}
 	parts := splitTrim(meta, ",")
 	if len(parts) == 0 {
 		return nil
 	}
-	t := &gmodel.Task{Label: label}
+	t := &gmodel.Task{Label: label, SameLine: sameLine}
 
 	// Leading tags.
 	for len(parts) > 0 {
@@ -102,6 +111,14 @@ func parseTask(line string) *gmodel.Task {
 			continue
 		case "milestone":
 			t.Milestone = true
+			parts = parts[1:]
+			continue
+		case "summary":
+			t.Summary = true
+			parts = parts[1:]
+			continue
+		case "sameline":
+			t.SameLine = true
 			parts = parts[1:]
 			continue
 		}
@@ -124,6 +141,61 @@ func parseTask(line string) *gmodel.Task {
 		t.SetRaw(parts[0], parts[1])
 	}
 	return t
+}
+
+// parseLink parses a dependency declaration (gmaid extension):
+//
+//	link <fromId> [FS|SS|FF|SF] <toId>
+//	link <fromId> --> <toId>            (FS)
+//
+// Returns ok=false if it cannot be parsed.
+func parseLink(s string) (gmodel.Link, bool) {
+	// Allow arrow form: replace "-->" with a FS keyword.
+	s = strings.ReplaceAll(s, "-->", " FS ")
+	f := strings.Fields(s)
+	var l gmodel.Link
+	switch len(f) {
+	case 2: // from to  (implicit FS)
+		l = gmodel.Link{From: f[0], To: f[1], Kind: gmodel.LinkFS}
+		return l, true
+	case 3: // from KIND to
+		k, ok := linkKind(f[1])
+		if !ok {
+			return l, false
+		}
+		l = gmodel.Link{From: f[0], To: f[2], Kind: k}
+		return l, true
+	}
+	return l, false
+}
+
+func linkKind(s string) (gmodel.LinkKind, bool) {
+	switch strings.ToUpper(strings.TrimSpace(s)) {
+	case "FS", "ES", "ENDE-ANFANG", "EA":
+		return gmodel.LinkFS, true
+	case "SS", "AA", "ANFANG-ANFANG":
+		return gmodel.LinkSS, true
+	case "FF", "EE", "ENDE-ENDE":
+		return gmodel.LinkFF, true
+	case "SF", "AE", "ANFANG-ENDE":
+		return gmodel.LinkSF, true
+	}
+	return 0, false
+}
+
+// normalizeBreaks converts <br>, <br/>, <br /> and the literal escape \n into
+// real newlines so labels and section names can be rendered multi-line.
+func normalizeBreaks(s string) string {
+	repl := strings.NewReplacer(
+		"<br/>", "\n",
+		"<br />", "\n",
+		"<br>", "\n",
+		"<BR/>", "\n",
+		"<BR />", "\n",
+		"<BR>", "\n",
+		`\n`, "\n",
+	)
+	return strings.TrimSpace(repl.Replace(s))
 }
 
 func parseTickInterval(c *gmodel.Chart, s string) {
