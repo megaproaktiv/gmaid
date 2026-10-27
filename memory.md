@@ -700,3 +700,52 @@ TOTAL_ERR/SEQ_TOTAL_ERR now read differently than the historical 7.391/2.659 —
 this is a fileset change, NOT a regression (flowchart/seq/git CODE untouched;
 confirmed via `git diff --stat`: only gmodel/gparser/glayout/grender/main.go +
 new gcss/).
+
+
+---
+
+# GANTT LAYOUT REFINEMENTS (added 2026-10-26, after the extensions above)
+
+These landed in the same 0.6.0 work (commit b26c7be) AFTER the GANTT EXTENSIONS
+section. They refine layout/readability; gantt metric intentionally rose from
+0.038 (A4-landscape widening is a deliberate divergence from mmdc proportions —
+references were NOT faked to hide it).
+
+## GLR1. A4-landscape-leaning DefaultConfig (glayout)
+- Changed from the old values: now `LeftPad=170` (was 100), `RightPad=140`
+  (was 120), `MinChartW=900` (was 560), plus new `LineSpacingPct=0.20`.
+- Effect: wider left text column + wider plot area so output leans landscape
+  (conrad plan ~2452x3276, ratio ~0.75). A 13-WP chart can't hit exact A4
+  (1.414) without unreadably thin rows; ~0.75 is the accepted compromise.
+
+## GLR2. Section-name auto word-wrap + taller bands
+- `textmetrics.Face.WrapToWidth(lines, maxW)` wraps at word boundaries (single
+  over-long words are left intact, not hard-split).
+- Wrapping happens in glayout (NOT grender) so band height can grow to fit:
+  per section, bandH = max(taskRows*rowH, labelLines*sectionLineH), where
+  sectionLineH = (SectionFont+3)*(1+LineSpacingPct). Bars are vertically
+  centered within the band when the label needs more height.
+- SectionBand now carries LabelLines []string + LineH; grender draws those
+  pre-wrapped lines (does not re-wrap).
+
+## GLR3. Same-line height fix + label centering
+- Canvas/band height counts REAL rows (same-line `&` tasks don't add a row).
+  Earlier bug: height used len(Tasks) → huge empty space below. Fixed via a
+  running yCursor and a pre-count that skips same-line followers.
+- Labels on a shared row (a `&` follower OR the anchor whose next sibling is
+  `&`) are kept CENTERED over their own bar even when the label overflows the
+  bar width — otherwise an overflowing label was placed to the right (x1+6) and
+  visually landed in the next month's column. This is the `inSharedRow` branch
+  in glayout bar-label placement.
+
+## GLR4. Summary bars keep their color via CSS
+- drawSummary uses theme.Summary (dark) by default BUT honors a CSS `fill`
+  override by task id. So the conrad plan colors all WP summary bars with
+  `rect[id$="-wpN"] { fill:#8a90dd; stroke:#534fbc; }` (N=1..13) to keep the WP
+  blue-violet instead of black.
+
+## GLR5. conrad plan usage (reference)
+- Rendered with: `gmaid -i plan.mmd -o plan.png -C plan.css` (no -c config).
+- Uses: `&` on every non-first monthly bar (capacity + all 6 role rows → one
+  line each); `summary` on all WP main bars; `link wp2 FS wp3` and
+  `link wp1_arch FS wp6`; 3-line `<br/>` WP titles; p̄ in capacity labels.
