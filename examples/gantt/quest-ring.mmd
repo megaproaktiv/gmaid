@@ -1,0 +1,37 @@
+gantt
+    title Quest to Destroy the One Ring
+    dateFormat YYYY-MM-DD
+    axisFormat %b %d
+    tickInterval 1month
+
+    section Fellowship
+    Fellowship of the Ring   :summary, fs, 2026-01-01, 2026-03-15
+    Council of Elrond        :done, council, 2026-01-01, 7d
+    Form the Fellowship      :active, form, after council, 10d
+    Depart from Rivendell    :milestone, depart, after form, 0d
+
+    section March to Mordor
+    Pass of Caradhras        :crit, caradhras, after depart, 12d
+    Mines of Moria           :crit, moria, after caradhras, 14d
+    Lothlorien respite       :lorien, after moria, 10d
+
+    section Carry the Ring (one line)
+    Amon Hen   :r1, after lorien, 8d
+    &Emyn Muil :r2, 2026-03-10, 8d
+    &Marshes   :r3, 2026-03-18, 8d
+    &Black Gate :r4, 2026-03-26, 8d
+
+    section Mount Doom
+    Climb Mount Doom         :climb, 2026-04-03, 9d
+    Destroy the One Ring     :milestone, crit, destroy, after climb, 0d
+    Fall of Barad-dur        :fall, after destroy, 3d
+
+    link council FS form
+    link form FS depart
+    link depart FS caradhras
+    link caradhras FS moria
+    link moria SS lorien
+    link lorien FS r1
+    link r4 FS climb
+    link climb FS destroy
+    link destroy FF fall

@@ -36,6 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Labels on shared rows stay centered over their own bar.
 - Wider left text column and landscape-leaning default chart width for
   A4-landscape-friendly output.
+- **`examples/` directory** with one ready-to-render diagram of each type
+  (flowchart, sequence, git graph, gantt) plus its rendered PNG. Includes an
+  enhanced, Lord-of-the-Rings-themed gantt example
+  (`examples/gantt/quest-ring.mmd`) demonstrating summary tasks, same-line
+  tasks and dependency arrows together, documented in a new "Examples" section
+  of the readme.
 
 ### Fixed
 
@@ -146,7 +152,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replacement, plus batch mode and a `Taskfile.dev.yml` (`build`, `render`).
 - 17 flowcharts in the test data.
 
-[Unreleased]: https://example.com/gmaid/compare/v0.5.5...HEAD
+[Unreleased]: https://example.com/gmaid/compare/v0.6.0...HEAD
+[0.6.0]: https://example.com/gmaid/releases/tag/v0.6.0
 [0.5.5]: https://example.com/gmaid/releases/tag/v0.5.5
 [0.5.0]: https://example.com/gmaid/releases/tag/v0.5.0
 [0.4.0]: https://example.com/gmaid/releases/tag/v0.4.0

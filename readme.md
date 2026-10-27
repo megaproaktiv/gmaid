@@ -19,6 +19,47 @@ go install github.com/megaproaktiv/gmaid@v0.4.0
 > reasons — older toolchains are missing fixes that `gmaid` depends on. Check
 > your version with `go version`.
 
+## Examples
+
+The `examples/` directory holds one ready-to-render diagram of each supported
+type, together with its rendered PNG. Each lives in its own subdirectory so you
+can see the source `.mmd` next to the output:
+
+| Diagram           | Source                               | Rendered output                      |
+|-------------------|--------------------------------------|--------------------------------------|
+| Flowchart         | `examples/flowchart/flowchart-100.mmd` | `examples/flowchart/flowchart-100.png` |
+| Sequence diagram  | `examples/sequence/sequence-100.mmd`   | `examples/sequence/sequence-100.png`   |
+| Git graph         | `examples/gitgraph/git-100.mmd`        | `examples/gitgraph/git-100.png`        |
+| Gantt chart       | `examples/gantt/quest-ring.mmd`        | `examples/gantt/quest-ring.png`        |
+
+Render any of them yourself with the single-file mode:
+
+```sh
+gmaid -i examples/flowchart/flowchart-100.mmd -o examples/flowchart/flowchart-100.png
+gmaid -i examples/gantt/quest-ring.mmd        -o examples/gantt/quest-ring.png
+```
+
+The flowchart, sequence and git-graph examples are copied straight from the
+anonymised `testdata/` set. The Gantt example (`examples/gantt/quest-ring.mmd`)
+is an **enhanced, hand-built** chart that exercises three advanced features at
+once, themed after the quest to destroy the One Ring:
+
+- **Summary tasks (Sammelvorgänge):** the `summary` tag renders a rollup bar
+  spanning a whole phase, e.g. the "Fellowship of the Ring" bar over the
+  Fellowship section.
+- **Same-line tasks (Vorgänge in einer Linie):** prefixing a task label with
+  `&` packs it onto the same row as the preceding task. The "Carry the Ring
+  (one line)" section places four legs (Amon Hen, Emyn Muil, Marshes, Black
+  Gate) on a single row.
+- **Dependencies drawn as vectors:** `link <from> <KIND> <to>` draws an arrow
+  between tasks, where `KIND` is `FS`/`SS`/`FF`/`SF` (German aliases
+  `EA`/`AA`/`EE`/`AE` also work). The example chains the whole quest with
+  finish-to-start, start-to-start and finish-to-finish arrows.
+
+All names are anonymised with *The Lord of the Rings* motifs (the Ring, Mordor,
+Mount Doom, the fall of Barad-dur), matching the anonymisation used elsewhere in
+the project.
+
 Supported diagram types (dispatched by the first keyword):
 
 | Keyword           | Packages                                      |
