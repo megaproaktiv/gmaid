@@ -12,7 +12,7 @@ gmaid                                 # batch: render all supported .mmd in ./te
 ## Install
 
 ```sh
-go install github.com/megaproaktiv/gmaid@v0.4.0
+go install github.com/megaproaktiv/gmaid@v0.6.0
 ```
 
 > **Requires Go 1.27.2 or newer.** This minimum is enforced for security
